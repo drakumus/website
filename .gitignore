@@ -4,3 +4,4 @@ secrets*
 *.tfstate
 *.tfstate.*
 .terraform.lock.hcl
+*.moba
