@@ -7,12 +7,6 @@ terraform {
   }
 }
 
-# Set the variable value in *.tfvars file
-# or using -var="do_token=..." CLI option
-# we used personal token from digital ocean's api panel
-# do so with: terraform apply -var="do_token=YOUR_PERSONAL_API_TOKEN"
-variable "do_token" {}
-
 # Configure the DigitalOcean Provider
 provider "digitalocean" {
   token = var.do_token
