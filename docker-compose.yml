@@ -3,7 +3,7 @@ services:
   zocimebby_website:
     container_name: zocimebby
     build:
-# defines build parameters. Not necessary because we have everything in root at the moment
+      # defines build parameters. Not necessary because we have everything in root at the moment
       dockerfile: ./Dockerfile
 #      context: ../service
     ports:
