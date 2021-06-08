@@ -1,0 +1,20 @@
+version: '3.0'
+services:
+  zocimebby_website:
+    container_name: zocimebby
+    build:
+# defines build parameters. Not necessary because we have everything in root at the moment
+      dockerfile: ./Dockerfile
+#      context: ../service
+    ports:
+      - "8080:80"
+    env_file: .env
+#    links:
+#      - postgres
+#  postgres:
+#    image: postgres
+#    ports:
+#      - "5432:5432"
+#    volumes:
+#      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+#    env_file: .env

@@ -1,0 +1,6 @@
+REMEMBER
+
+rebuilds and executes as a detached instance of the docker container 
+```
+docker compose up --build -d
+```
