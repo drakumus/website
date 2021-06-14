@@ -1,0 +1,8 @@
+version: '3.0'
+services:
+  zocimebby_website:
+    container_name: website
+    image: ghcr.io/drakumus/website-image:latest
+#      context: ../service
+    ports:
+      - "8080:80"
