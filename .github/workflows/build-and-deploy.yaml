@@ -58,6 +58,6 @@ jobs:
           script: |
             echo "$GIT_TOKEN" | docker login ghcr.io -u drakumus --password-stdin
             docker pull ghcr.io/drakumus/website-image:latest
-            cd website/.github/workflows
+            cd website/prod_configs/
             docker-compose up -d
 
