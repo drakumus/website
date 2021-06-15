@@ -47,7 +47,7 @@ jobs:
         name: deploy the container
         uses: appleboy/ssh-action@master
         env:
-          GIT_TOKEN: ${{ secrets.CBA }}
+          GIT_TOKEN: ${{ secrets.SHIP_IT }}
         with:
           host: ${{ secrets.SSH_IP_ADDRESS }}
           username: root
@@ -56,8 +56,8 @@ jobs:
           script_stop: true # stop after failure
           envs: git_token
           script: |
-            docker login ghcr.io -u drakumus -p "$GIT_TOKEN"
+            echo "$GIT_TOKEN" | docker login ghcr.io -u drakumus --password-stdin
             docker pull ghcr.io/drakumus/website-image:latest
             cd website/.github/workflows
-            docker compose up
+            docker-compose up -d
 
