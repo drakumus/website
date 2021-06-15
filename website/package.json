@@ -1,0 +1,18 @@
+{
+    "title": "Website",
+    "name": "website",
+    "version": "7.0.2",
+    "scripts": {},
+    "description": "My website.",
+    "keywords": [],
+    "author": "Rohan",
+    "contributors": [],
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/StartBootstrap/startbootstrap-freelancer.git"
+    },
+    "dependencies": {
+        "bootstrap": "5.0.1"
+    },
+    "devDependencies": {}
+}

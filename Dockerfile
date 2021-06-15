@@ -1,7 +1,7 @@
 FROM nginx:stable-alpine
 RUN mkdir /app
 WORKDIR /app
-COPY ./src .
+COPY ./website/src .
 COPY ./nginx.conf /etc/nginx/nginx.conf
 RUN chown -R 0777 .
 EXPOSE 80
