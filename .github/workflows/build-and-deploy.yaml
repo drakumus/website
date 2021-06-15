@@ -56,7 +56,7 @@ jobs:
           script_stop: true # stop after failure
           envs: git_token
           script: |
-            docker login ghcr.io -u drakumus -p "$git_token"
+            echo "$git_token" | docker login ghcr.io -u drakumus --password-stdin
             docker pull ghcr.io/drakumus/website-image:latest
             cd website/.github/workflows
             docker compose up
