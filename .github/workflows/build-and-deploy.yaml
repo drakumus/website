@@ -41,7 +41,7 @@ jobs:
           username: root
           port: 22
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: ".github/workflows/docker-compose.yml"
+          source: "prod_configs/docker-compose.yml"
           target: "website" # website folder
       -
         name: deploy the container
