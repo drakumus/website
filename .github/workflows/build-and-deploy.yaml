@@ -47,7 +47,7 @@ jobs:
         name: deploy the container
         uses: appleboy/ssh-action@master
         env:
-          git_token: ${{ secrets.SHIP_IT }}
+          git_token: ${{ secrets.CBA }}
         with:
           host: ${{ secrets.SSH_IP_ADDRESS }}
           username: root
