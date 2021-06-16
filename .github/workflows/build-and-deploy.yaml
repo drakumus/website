@@ -61,4 +61,3 @@ jobs:
             cd website/prod_configs/
             docker-compose up -d
             chmod +x ./init-letsencrypt.sh
-            ./init-letsencrypt.sh
