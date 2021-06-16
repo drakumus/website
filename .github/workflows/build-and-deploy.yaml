@@ -34,17 +34,17 @@ jobs:
         name: Image digest
         run: echo ${{ steps.docker_build.outputs.digest }}
       -
-        name: copy docker-compose to remote
+        name: copy docker-compose and ssl init script to remote
         uses: appleboy/scp-action@master
         with:
           host: ${{ secrets.SSH_IP_ADDRESS }}
           username: root
           port: 22
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "prod_configs/docker-compose.yml"
+          source: "prod_configs/docker-compose.yml,prod_configs/init-letsencrypt.sh"
           target: "website" # website folder
       -
-        name: deploy the container
+        name: deploy the container and run init scripts where necessary
         uses: appleboy/ssh-action@master
         env:
           GIT_TOKEN: ${{ secrets.SHIP_IT }}
@@ -60,4 +60,5 @@ jobs:
             docker pull ghcr.io/drakumus/website-image:latest
             cd website/prod_configs/
             docker-compose up -d
-
+            chmod +x ./init-letsencrypt.sh
+            ./init-letsencrypt.sh

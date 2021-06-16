@@ -5,16 +5,21 @@ services:
     build:
       # defines build parameters. Not necessary because we have everything in root at the moment
       dockerfile: ./Dockerfile
-#      context: ../service
+      context: .
+    restart: unless-stopped
     ports:
-      - "8080:80"
+      - "80:80"
     env_file: .env
-#    links:
-#      - postgres
-#  postgres:
-#    image: postgres
-#    ports:
-#      - "5432:5432"
-#    volumes:
-#      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
-#    env_file: .env
+    volumes:
+      - ./data/certbot/conf:/etc/letsencrypt
+      - ./data/certbot/www:/var/www/certbot
+    # load the latest cert every 6 hours
+    command: "/bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g \"daemon off;\"'"
+  certbot:
+    image: certbot/certbot
+    restart: unless-stopped
+    volumes:
+      - ./data/certbot/conf:/etc/letsencrypt
+      - ./data/certbot/www:/var/www/certbot
+    # auto renewal
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
