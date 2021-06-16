@@ -5,6 +5,7 @@ services:
     image: ghcr.io/drakumus/website-image:latest
     ports:
       - "80:80"
+      - "443:443"
     volumes:
       - ./data/certbot/conf:/etc/letsencrypt
       - ./data/certbot/www:/var/www/certbot
