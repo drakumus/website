@@ -53,13 +53,12 @@ jobs:
           username: root
           port: 22
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script_stop: true # stop after failure
           envs: git_token
           script: |
             echo "$GIT_TOKEN" | docker login ghcr.io -u drakumus --password-stdin
             docker pull ghcr.io/drakumus/website-image:latest
             cd website/prod_configs/
             chmod +x ./init-letsencrypt.sh
-            docker-compose down
+            docker-compose down website certbot
             ./init-letsencrypt.sh
             docker-compose up -d website

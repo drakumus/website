@@ -1,6 +1,6 @@
 version: '3.0'
 services:
-  zocimebby_website:
+  website:
     container_name: website
     image: ghcr.io/drakumus/website-image:latest
     ports:
@@ -13,6 +13,7 @@ services:
     command: "/bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g \"daemon off;\"'"
   certbot:
     image: certbot/certbot
+    container_name: certbot
     restart: unless-stopped
     volumes:
       - ./data/certbot/conf:/etc/letsencrypt
