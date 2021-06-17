@@ -59,6 +59,6 @@ jobs:
             docker pull ghcr.io/drakumus/website-image:latest
             cd website/prod_configs/
             chmod +x ./init-letsencrypt.sh
-            docker-compose down website
+            docker-compose stop website
             ./init-letsencrypt.sh
             docker-compose up -d
