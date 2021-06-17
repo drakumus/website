@@ -59,5 +59,7 @@ jobs:
             echo "$GIT_TOKEN" | docker login ghcr.io -u drakumus --password-stdin
             docker pull ghcr.io/drakumus/website-image:latest
             cd website/prod_configs/
-            docker-compose up -d
             chmod +x ./init-letsencrypt.sh
+            docker-compose down
+            ./init-letsencrypt.sh
+            docker-compose up -d website
