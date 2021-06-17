@@ -68,4 +68,4 @@ docker-compose run --rm --entrypoint "\
 echo
 
 echo "### Reloading website ..."
-docker-compose exec website nginx -s reload
+docker-compose exec -t website nginx -s reload

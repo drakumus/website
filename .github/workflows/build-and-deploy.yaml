@@ -62,3 +62,4 @@ jobs:
             docker-compose stop website
             ./init-letsencrypt.sh
             docker-compose up -d
+            docker-compose exec -T website nginx -s reload
