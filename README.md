@@ -10,7 +10,7 @@ the companion project to this one.
 https://github.com/drakumus/DigitalOceanDropletTerraform
 
 ### When changes are pushed to this repository, GitHub Actions will
-1. Build, Tag, and Upload a docker image based off of nginx, but with the 
+1. Build, tag, and upload a Docker image based off of Nginx, but with the 
    website src added
 2. Connect to the remote DigitalOcean server with auto-provisioned ssh keys 
 3. Upload `docker-compose.yml` and `init-letsencrypt.sh`
