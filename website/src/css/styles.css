@@ -10980,17 +10980,20 @@ html {
 
 .masthead {
   padding-top: calc(6rem + 74px);
+  margin-top: -6rem;
   padding-bottom: 6rem;
 }
 .masthead .masthead-heading {
   font-size: 2.75rem;
   line-height: 2.75rem;
+  margin-top: -6rem;
 }
 .masthead .masthead-subheading {
   font-size: 1.25rem;
 }
 .masthead .masthead-avatar {
   width: 25rem;
+  padding-top: 3.75rem;
 }
 
 @media (min-width: 992px) {
