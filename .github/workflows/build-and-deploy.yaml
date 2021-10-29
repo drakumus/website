@@ -41,7 +41,7 @@ jobs:
           username: root
           port: 22
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "prod_configs/docker-compose.yml,prod_configs/init-letsencrypt.sh"
+          source: "prod_configs/website/docker-compose.yml,prod_configs/init-letsencrypt.sh"
           target: "website" # website folder
       -
         name: deploy the container and run init scripts where necessary
@@ -57,9 +57,9 @@ jobs:
           script: |
             echo "$GIT_TOKEN" | docker login ghcr.io -u drakumus --password-stdin
             docker pull ghcr.io/drakumus/website-image:latest
-            cd website/prod_configs/
-            chmod +x ./init-letsencrypt.sh
+            cd website/prod_configs/website/
+            chmod +x ../init-letsencrypt.sh
             docker-compose stop website
-            ./init-letsencrypt.sh
+            ../init-letsencrypt.sh
             docker-compose up -d
             docker-compose exec -T website nginx -s reload
