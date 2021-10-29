@@ -1,4 +1,5 @@
 version: '3.0'
+project_name: "website"
 services:
   website:
     container_name: website
