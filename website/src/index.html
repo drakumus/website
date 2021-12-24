@@ -38,9 +38,9 @@
         <header class="masthead bg-primary text-white text-center">
             <div class="container d-flex align-items-center flex-column">
                 <!-- Masthead Avatar Image-->
-                <img class="masthead-avatar mb-5" src="assets/img/me.png" alt="..." />
+                <img hidden class="masthead-avatar mb-5" src="assets/img/me.png" alt="..." />
                 <!-- Masthead Heading-->
-                <h1 class="masthead-heading text-uppercase mb-0">Rohan Cheeniyil</h1>
+                <h1 class="masthead-heading text-uppercase mt-5 mb-0">Rohan Cheeniyil</h1>
                 <!-- Icon Divider-->
                 <div class="divider-custom divider-light">
                     <div class="divider-custom-line"></div>
@@ -70,7 +70,7 @@
                             <div class="portfolio-item-caption d-flex align-items-center justify-content-center h-100 w-100">
                                 <div class="portfolio-item-caption-content text-center text-white"><i class="fas fa-plus fa-3x"></i></div>
                             </div>
-                            <img class="img-fluid" src="assets/img/portfolio/cabin.png" alt="..." />
+                            <img class="img-fluid" src="assets/img/portfolio/DO_Logo_icon_blue.png" alt="..." />
                         </div>
                     </div>
                     <!-- Portfolio Item 2-->
@@ -79,7 +79,7 @@
                             <div class="portfolio-item-caption d-flex align-items-center justify-content-center h-100 w-100">
                                 <div class="portfolio-item-caption-content text-center text-white"><i class="fas fa-plus fa-3x"></i></div>
                             </div>
-                            <img class="img-fluid" src="assets/img/portfolio/cake.png" alt="..." />
+                            <img class="img-fluid" src="assets/img/portfolio/game.png" alt="..." />
                         </div>
                     </div>
                     <!-- Portfolio Item 3-->
@@ -88,10 +88,11 @@
                             <div class="portfolio-item-caption d-flex align-items-center justify-content-center h-100 w-100">
                                 <div class="portfolio-item-caption-content text-center text-white"><i class="fas fa-plus fa-3x"></i></div>
                             </div>
-                            <img class="img-fluid" src="assets/img/portfolio/circus.png" alt="..." />
+                            <img class="img-fluid" src="assets/img/portfolio/safe.png" alt="..." />
                         </div>
                     </div>
                     <!-- Portfolio Item 4-->
+                    <!--
                     <div class="col-md-6 col-lg-4 mb-5 mb-lg-0">
                         <div class="portfolio-item mx-auto" data-bs-toggle="modal" data-bs-target="#portfolioModal4">
                             <div class="portfolio-item-caption d-flex align-items-center justify-content-center h-100 w-100">
@@ -100,7 +101,9 @@
                             <img class="img-fluid" src="assets/img/portfolio/game.png" alt="..." />
                         </div>
                     </div>
+                    -->
                     <!-- Portfolio Item 5-->
+                    <!--
                     <div class="col-md-6 col-lg-4 mb-5 mb-md-0">
                         <div class="portfolio-item mx-auto" data-bs-toggle="modal" data-bs-target="#portfolioModal5">
                             <div class="portfolio-item-caption d-flex align-items-center justify-content-center h-100 w-100">
@@ -109,7 +112,9 @@
                             <img class="img-fluid" src="assets/img/portfolio/safe.png" alt="..." />
                         </div>
                     </div>
+                    -->
                     <!-- Portfolio Item 6-->
+                    <!--
                     <div class="col-md-6 col-lg-4">
                         <div class="portfolio-item mx-auto" data-bs-toggle="modal" data-bs-target="#portfolioModal6">
                             <div class="portfolio-item-caption d-flex align-items-center justify-content-center h-100 w-100">
@@ -118,6 +123,7 @@
                             <img class="img-fluid" src="assets/img/portfolio/submarine.png" alt="..." />
                         </div>
                     </div>
+                    -->
                 </div>
             </div>
         </section>
@@ -187,12 +193,12 @@
             <div class="modal-dialog modal-xl">
                 <div class="modal-content">
                     <div class="modal-header border-0"><button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Close"></button></div>
-                    <div class="modal-body text-center pb-5">
+                    <div class="modal-body pb-5">
                         <div class="container">
                             <div class="row justify-content-center">
                                 <div class="col-lg-8">
                                     <!-- Portfolio Modal - Title-->
-                                    <h2 class="portfolio-modal-title text-secondary text-uppercase mb-0">Log Cabin</h2>
+                                    <h2 class="text-center portfolio-modal-title text-secondary text-uppercase mb-0">Project CI Process</h2>
                                     <!-- Icon Divider-->
                                     <div class="divider-custom">
                                         <div class="divider-custom-line"></div>
@@ -200,9 +206,81 @@
                                         <div class="divider-custom-line"></div>
                                     </div>
                                     <!-- Portfolio Modal - Image-->
-                                    <img class="img-fluid rounded mb-5" src="assets/img/portfolio/cabin.png" alt="..." />
+                                    <img class="img-fluid rounded mb-3" src="assets/img/portfolio/Droplet.png" alt="..." />
                                     <!-- Portfolio Modal - Text-->
-                                    <p class="mb-4">Lorem ipsum dolor sit amet, consectetur adipisicing elit. Mollitia neque assumenda ipsam nihil, molestias magnam, recusandae quos quis inventore quisquam velit asperiores, vitae? Reprehenderit soluta, eos quod consequuntur itaque. Nam.</p>
+                                    <h3>The Project Server</h3>
+                                    <p class="mb-2 d-flex">
+                                        Over the years I've had to spin up many a project server whether it be for hackathons or personal projects, it's always useful to have a space to run code contiguously.
+                                        I eventually settled on DigitalOcean as my provider for various reasons and so my first project droplet was created. 
+                                        This droplet lasted for about a year and a half running a large discord bot which tracked heuristics on ~500 runescape accounts using a mysql, discordjs, nodejs stack.
+                                        Unfortunately it wasn't to last since a bot net took down the server in late 2019.
+                                        Put off by the idea of spending another 15+ hours setting up a project server I shut down the discord bot and let the project gather dust for a year or two.
+                                        This was the state of affairs until a friend introduced me to Terraform.
+                                    </p>
+                                    <p class="mb-2 d-flex">
+                                        Terraform is a language that allows developers to spin up language defined servers in an automated manner.
+                                        Utilizing this technology with docker allows for a CI process that I could've only dreamed of 5 years ago.
+                                        Currently, for personal projects, Terraform is utilized to:
+                                    </p>
+                                    <ol>
+                                        <li>Create a Droplet on DigitalOcean with Docker preloaded on Ubuntu</li>
+                                        <li>Add an ssh keypair between the server and local environment</li>
+                                        <li>Create a shortcut to a MobaXterm session with the server</li>
+                                        <li>Distribute ssh key pairs as Github secrets to each project repo on the server</li>
+                                        <li>Create DNS entries required for this website</li>
+                                    </ol>
+                                    <p class="mb-2 d-flex">
+                                        The resulting distributed secrets:
+                                    </p>
+                                    <img class="img-fluid rounded mb-1" src="assets/img/portfolio/git_secrets.png" alt="..." />
+                                    <p class="mb-1 d-flex">
+                                        Using these secret's ssh info, project repositories are able to deploy themselves as docker images. A process explored further below.
+                                        You can find my terraform repository here:
+                                    </p>
+                                    <a href="https://github.com/drakumus/DigitalOceanDropletTerraform">https://github.com/drakumus/DigitalOceanDropletTerraform</a>
+                                    <h3 class="mt-3">Docker and Project Structure</h3>
+                                    <p class="mb-2 d-flex">
+                                        Now that a server exists and a methodology for distributing ssh info to each git repo has been established it's time to tackle the process of auto-deploying.
+                                        Github hosts its own docker registry which allows us to publish images for our repository.
+                                        Using docker compose not only can the solution be packaged, but also deployed under our terms with a simple init script found in the docker file.
+                                        Currently each of my projects follows the following structure:
+                                    </p>
+                                    <ul>
+                                        <li>development-docker-compose.yml</li>
+                                        <li>prod_configs-folder</li>
+                                        <ul>
+                                            <li>project-name-folder</li>
+                                            <ul>
+                                                <li>release-docker-compose.yml</li>
+                                            </ul>
+                                            <li>...any init scripts</li>
+                                        </ul>
+                                    </ul>
+                                    <p class="mb-2 d-flex">
+                                        At the top level exists a docker compose used entirely for development maintained separately from what is expected in prod.
+                                        Inside the folder "prod configs" exists a folder with the project name to help with docker artifact naming in which the release exists along with any init scripts that we'd like to copy into the docker container.
+                                        Secrets can exist in a .env file for development, but should be placed in git secrets for deploying.
+                                    </p>
+                                    <h3>Git CI</h3>
+                                    <img class="img-fluid rounded mb-1" src="assets/img/portfolio/git-ci.png" alt="..." />
+                                    <p class="mt-1 mb-2 d-flex">
+                                        Most of this processes is pretty self explanatory. Generate a docker image and upload it to the git registry.
+                                        The most interesting step is actually "deploy the container and run init scripts where necessary".
+                                        A bit long winded but it's actually running some basic setup by bash on the remote server using git secrets to connect and copy over the docker image.
+                                        Once that's done the project is deployed! 
+                                    </p>
+                                    <p class="mt-1 mb-2 d-flex">
+                                        Running this job every commit to master means I never have to worry about deploying to the server.
+                                        All the hassle of sshing into a server to copy in a release and getting it up and running is gone.
+                                        Now that I'm done writing up this blog all I have to do is git add, commit, push and it'll be on the internet for all to see in a matter of minutes.
+                                        To see my website project and build-and-deploy.yaml checkout any one of my project repositories deployed to the server found here: 
+                                    </p>
+                                    <a href="https://github.com/drakumus/website">Website</a>
+                                    <br>
+                                    <a href="https://github.com/drakumus/evobot-docker">Music Bot for Discord</a>
+                                    <br>
+                                    <a href="https://github.com/drakumus/ShadowRealmDiscordBot">Discord bot for cron jobs on my server and various silly things</a>
+                                    <div class="mb-3"></div>
                                     <button class="btn btn-primary" href="#!" data-bs-dismiss="modal">
                                         <i class="fas fa-times fa-fw"></i>
                                         Close Window
@@ -219,26 +297,142 @@
             <div class="modal-dialog modal-xl">
                 <div class="modal-content">
                     <div class="modal-header border-0"><button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Close"></button></div>
-                    <div class="modal-body text-center pb-5">
+                    <div class="modal-body pb-5">
                         <div class="container">
                             <div class="row justify-content-center">
-                                <div class="col-lg-8">
+                                <div class="col-lg-8 w-100">
                                     <!-- Portfolio Modal - Title-->
-                                    <h2 class="portfolio-modal-title text-secondary text-uppercase mb-0">Tasty Cake</h2>
+                                    <h2 class="text-center portfolio-modal-title text-secondary text-uppercase mb-0">Sorrow Bot</h2>
                                     <!-- Icon Divider-->
                                     <div class="divider-custom">
                                         <div class="divider-custom-line"></div>
                                         <div class="divider-custom-icon"><i class="fas fa-star"></i></div>
                                         <div class="divider-custom-line"></div>
                                     </div>
+
+                                    <div  class="p-5 rounded" style="background-color: #2C2F33; color: whitesmoke">
+
                                     <!-- Portfolio Modal - Image-->
-                                    <img class="img-fluid rounded mb-5" src="assets/img/portfolio/cake.png" alt="..." />
+                                    <img class="img-fluid rounded mb-2" src="assets/img/portfolio/Sorrow_Bot.png" alt="..." />
                                     <!-- Portfolio Modal - Text-->
-                                    <p class="mb-4">Lorem ipsum dolor sit amet, consectetur adipisicing elit. Mollitia neque assumenda ipsam nihil, molestias magnam, recusandae quos quis inventore quisquam velit asperiores, vitae? Reprehenderit soluta, eos quod consequuntur itaque. Nam.</p>
+                                    <p class="mb-2">
+                                        Sorrow Bot, originally Compscape, was a discord bot I started as a labor of love to get more experience with databases before getting into the industry back in 2018.
+                                        It grew into a lot more and became one of my longest supported projects lasting a whole two years of development before being taken down due to a bot net attack that compromised the mysql backend.
+                                    </p>
+                                    <p class="mb-2">
+                                        The stack was DiscordJS | VegaJS | NodeJS | MySQL on a Ubuntu Server. This predated my current CI process.
+                                        At some point I'll get around to updating this but it'd sit better on a GraphQL database instead of the now dated MySQL database.
+                                    </p>
+                                    <p class="mb-2">
+                                        Below is a copy paste of the documentation I had provided on discord with some image examples of the commands output using live data:
+                                    </p>
+                                    <pre>
+                                    <code class="mb-4">
+COMMANDS
+NOTE:  *  means the !myrsn command was already used 
+-------------------------------------------------------------------------!myrsn
+!myrsn [Your Runescape Name]
+example: !myrsn Z0CI
+Allows commands that require a name to automatically use the
+name provided with this command. i.e. !exp, !log, !clanexp
+-------------------------------------------------------------------------!max
+!max [Runescape Name]
+example: 
+1) !max Z0CI
+2) !max  * 
+Tells you how much exp a person has until they are maxed
+-------------------------------------------------------------------------!gdaily
+!gdaily [Optional Number]
+example:
+1) !gdaily
+2) !gdaily 15
+The graphical daily command lets you see the top 10 players by 
+default for the daily time period (from prev ingame reset to the next).
+You can also, optionally, provide a number to see up to the top 15
+players. Similarly, the !gweekly and !gmonthly command exist.
+If you don't like the graphic you can also use !daily but that
+does not take an optional number and may have a lower default.
+Reset times:  
+daily:  0:00 ingame time (reset)
+weekly: 0:00 monday morning ingame (Sunday reset for NA)
+monthly: 0:00 on the first day of the month
+<img class="img-fluid w-50 rounded" src="assets/img/portfolio/compscape/gdaily.png" alt="..." />
+-------------------------------------------------------------------------!exp
+!exp [Runescape Name]
+example:
+1) !exp Z0CI
+2) !exp  * 
+Gives you your total exp gains for all time, the day, and the week.
+Day implies since the last reset and week implies since the last
+weekly reset. See Reset Times above for clarification on those.
+<img class="img-fluid w-50 rounded" src="assets/img/portfolio/compscape/exp.png" alt="..." />
+-------------------------------------------------------------------------!canjoin
+!canjoin [Runescape Name]
+example:
+1) !canjoin Z0CI
+2) !canjoin  * 
+Lets you see a person's combat level, total level, and skill levels, 
+along with a message informing you if that person meets the
+minimum requirements to join Sorrow Knights. This does work
+with the !myrsn command so if you ever feel like double checking
+if you are allowed to be in the clan you can always do !canjoin
+without specifying a name :roouwu:
+-------------------------------------------------------------------------!cantheyjoin
+!cantheyjoin [Runescape Name], [Runescape Name], [Runescape Name],
+[Runescape Name], [Runescape Name], [Runescape Name]
+example:
+ !canjoin Z0CI, Saphira3883, iSlash, SFBrave
+Takes a list of up to 6 people and checks if their combat level or total level
+are high enough to join Sorrow Knights. Note this does not  work with
+the myrsn command. 
+-------------------------------------------------------------------------!clanexp
+!clanexp [Runescape Name]
+1) !clanexp Z0CI
+2) !clanexp  * 
+Lets you see a user's exp gained since they joined the clan.
+⚠ This gets reset the second you leave the clan
+-------------------------------------------------------------------------!epeen
+!epeen [Runescape Name]
+example:
+1) !epeen Z0CI
+2) !epeen  * 
+Gives a full report on the size of your epeen. Provides ranking,
+percentile, exp, and epeen size for daily, weekly, monthly, and total
+exp gained. At the bottom are some pie charts showing your daily,
+weekly, monthly, and total exp vs the reset of the clan's. 
+<img class="img-fluid w-50 rounded" src="assets/img/portfolio/compscape/epeen1.png" alt="..." />
+<img class="img-fluid w-50 rounded" src="assets/img/portfolio/compscape/epeen2.png" alt="..." />
+-------------------------------------------------------------------------!log
+!log [Runescape Name]
+example:
+1) !log Z0CI
+2) !log  * 
+Prints your adventure log if your runemetric profile is public.
+<img class="img-fluid w-50 rounded" src="assets/img/portfolio/compscape/log.png" alt="..." />
+-------------------------------------------------------------------------!ports
+!ports [hours:minutes]
+example: !ports 1:15
+@s you when the specified hours and minutes timer expires.
+Intended use is ports but can really be used as a general timer. 
+-------------------------------------------------------------------------Event Commands
+The commands !rank and !leaderboard exist. I'll probably
+expand this next time there's an event. Otherwise you can use
+those to get info about the last exp event we had. 
+-------------------------------------------------------------------------!compexp
+!compexp [Runescape Name]
+1) !compexp Z0CI
+2) !compexp  * 
+Lets you see how much exp you have left to true max.
+(120 dg, invention, slayer, farming, and herblore)
+Includes exp left to max if you aren't maxed.
+Note: the command compexp can be swapped out for truemax i.e. !truemax Z0CI
+                                    </code>
+                                    </pre>
                                     <button class="btn btn-primary" href="#!" data-bs-dismiss="modal">
                                         <i class="fas fa-times fa-fw"></i>
                                         Close Window
                                     </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -256,17 +450,37 @@
                             <div class="row justify-content-center">
                                 <div class="col-lg-8">
                                     <!-- Portfolio Modal - Title-->
-                                    <h2 class="portfolio-modal-title text-secondary text-uppercase mb-0">Circus Tent</h2>
+                                    <h2 class="portfolio-modal-title text-secondary text-uppercase mb-0">Computer Engineering School Projects</h2>
                                     <!-- Icon Divider-->
                                     <div class="divider-custom">
                                         <div class="divider-custom-line"></div>
                                         <div class="divider-custom-icon"><i class="fas fa-star"></i></div>
                                         <div class="divider-custom-line"></div>
                                     </div>
+                                    <h3 class="mt-2 mb-2">Senior Project</h3>
                                     <!-- Portfolio Modal - Image-->
-                                    <img class="img-fluid rounded mb-5" src="assets/img/portfolio/circus.png" alt="..." />
+                                    <iframe class="mb-2" width="600" height="400"
+                                    src="https://www.youtube.com/embed/qG8Q75YpDy8">
+                                    </iframe>
                                     <!-- Portfolio Modal - Text-->
-                                    <p class="mb-4">Lorem ipsum dolor sit amet, consectetur adipisicing elit. Mollitia neque assumenda ipsam nihil, molestias magnam, recusandae quos quis inventore quisquam velit asperiores, vitae? Reprehenderit soluta, eos quod consequuntur itaque. Nam.</p>
+                                    <div class="text-start">
+                                        <p class="mb-2">
+                                            My goal was to develop an LED controller that could sit on each individual fingertip and communicated light patterns to each other.
+                                            In order for each LED to communicate without increasing project complexity or power requirements the LEDs on each device were used as senders and receivers.
+                                            This concept is known as visual light communications.
+                                            The above video shows successful visual light communication I was able to achieve on my own networking UDP protocol.
+                                            A link to the repository with the code behind that can be found below, along with a simple C# application using Model View View Model software architecture to set lighting patterns:
+                                        </p>
+                                        <a href="https://github.com/drakumus/SeniorProject">https://github.com/drakumus/SeniorProject</a>
+                                        <h3 class="mt-2 mb-2 text-center">Self Balancing Robot</h3>
+                                        <iframe class="mb-2" width="600" height="400"
+                                        src="https://www.youtube.com/embed/2yIC1yWF2oY">
+                                        </iframe>
+                                        <p class="mb-2">
+                                            This was a fun project where I got to 3D print the chassis as well as program 16bit processor with a PID to self correct and balance.
+                                        </p>
+                                    </div>
+                                    <div class="mb-3"></div>
                                     <button class="btn btn-primary" href="#!" data-bs-dismiss="modal">
                                         <i class="fas fa-times fa-fw"></i>
                                         Close Window
@@ -278,6 +492,7 @@
                 </div>
             </div>
         </div>
+
         <!-- Portfolio Modal 4-->
         <div class="portfolio-modal modal fade" id="portfolioModal4" tabindex="-1" aria-labelledby="portfolioModal4" aria-hidden="true">
             <div class="modal-dialog modal-xl">
