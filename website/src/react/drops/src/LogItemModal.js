@@ -1,4 +1,3 @@
-import logo from './logo.svg';
 import React, {Component} from "react";
 import axios from 'axios';
 import './animations.css';
@@ -22,7 +21,7 @@ function getPlayerID(player_name, players)
 {
   for(let index in players)
   {
-    if (player_name == players[index].player_name)
+    if (player_name === players[index].player_name)
     {
       return players[index].id
     }
@@ -34,7 +33,7 @@ function getItemTypeIndex(item_name)
 {
   for(let index in item_types)
   {
-    if (item_name == item_types[index])
+    if (item_name === item_types[index])
     {
       return index
     }
@@ -52,29 +51,10 @@ class LogItemModal extends Component {
     shake_style: {}
   }
 
-  componentDidMount() {
-    this.getStaticMembersDataAPI()
-      .then(res => this.setState(res))
-      .catch(err => console.log(err));
-  }
-
-  getStaticMembersDataAPI = async () => {
-    const static_members_response = await fetch('http://localhost:5000/static_members');
-    const static_members_body = await static_members_response.json();
-    console.log(static_members_body)
-    if (static_members_response.status !== 200) {
-      throw Error(static_members_body.message)
-    }
-
-    return {
-      static_members: static_members_body,
-    };
-  };
-
   handleLogLoot = async (e) => {
     e.preventDefault()
     let body = {
-      player_id: getPlayerID(this.state.player_name, this.state.static_members),
+      player_id: getPlayerID(this.state.player_name, this.props.static_members),
       item_type_index: getItemTypeIndex(this.state.item_type),
       with_static: this.state.with_static,
       is_main: this.state.is_main,
@@ -87,26 +67,27 @@ class LogItemModal extends Component {
       body: JSON.stringify(body)
     }
 
-
-
     const response = await fetch('http://localhost:5000/log_drops', requestOptions).catch(err => {
       console.log(err)
     })
     */
     console.log(body)
 
-    let response = await axios.post('http://localhost:5000/log_drops', body).catch(err => {
+    let response = await axios.post('http://zoci.me:5000/log_drops', body).catch(err => {
       console.error(err);
       return {status: 403}
     });
     console.log(response);
-    if(response.status == 403)
+    if(response.status === 403)
     {
       console.log("invalid admin key")
       this.setState({shake_style: {animation: "shake 0.5s"}})
       setTimeout(()=> {
         this.setState({shake_style: {}})
       }, 500)
+    } else
+    {
+      this.props.updateDrops();
     }
   }
 
@@ -124,9 +105,9 @@ class LogItemModal extends Component {
   render() {
     // populate names
     let names = []
-    for ( let name_index in this.state.static_members )
+    for ( let name_index in this.props.static_members )
     {
-      names.push((<option>{this.state.static_members[name_index].player_name}</option>))
+      names.push((<option>{this.props.static_members[name_index].player_name}</option>))
     }
 
     let item_types_options = []
