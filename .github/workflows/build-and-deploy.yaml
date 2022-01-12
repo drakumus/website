@@ -24,15 +24,28 @@ jobs:
           password: ${{ secrets.SHIP_IT }}
       -
         name: Build and push
-        id: docker_build
+        id: docker_build_website
         uses: docker/build-push-action@v2
         with:
-          context: .
+          context: ./website
+          dockerfile: ./Dockerfile
           push: true
           tags: ghcr.io/${{ github.repository_owner }}/website-image:latest
       -
-        name: Image digest
-        run: echo ${{ steps.docker_build.outputs.digest }}
+        name: Website image digest
+        run: echo ${{ steps.docker_build_website.outputs.digest }}
+      -
+        name: Build and push
+        id: docker_build_nginx
+        uses: docker/build-push-action@v2
+        with:
+          context: ./nginx
+          dockerfile: ./Dockerfile
+          push: true
+          tags: ghcr.io/${{ github.repository_owner }}/nginx-image:latest
+      -
+        name: Nginx image digest
+        run: echo ${{ steps.docker_build_nginx.outputs.digest }}
       -
         name: copy docker-compose and ssl init script to remote
         uses: appleboy/scp-action@master
@@ -48,18 +61,20 @@ jobs:
         uses: appleboy/ssh-action@master
         env:
           GIT_TOKEN: ${{ secrets.SHIP_IT }}
+          DB_CREDS: ${{ secrets.DB_ENVS }}
         with:
           host: ${{ secrets.SSH_IP_ADDRESS }}
           username: root
           port: 22
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          envs: git_token
+          envs: git_token, DB_CREDS
           script: |
             echo "$GIT_TOKEN" | docker login ghcr.io -u drakumus --password-stdin
             docker pull ghcr.io/drakumus/website-image:latest
             cd website/prod_configs/website/
+            echo "$DB_CREDS" > .env
             chmod +x ../init-letsencrypt.sh
             docker-compose stop website
             ../init-letsencrypt.sh
             docker-compose up -d
-            docker-compose exec -T website nginx -s reload
+            docker-compose exec -T nginx nginx -s reload

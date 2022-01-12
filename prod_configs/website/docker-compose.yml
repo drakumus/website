@@ -4,6 +4,12 @@ services:
     container_name: website
     image: ghcr.io/drakumus/website-image:latest
     ports:
+      - "5000:5000"
+    env_file: .env
+  nginx:
+    container_name: nginx
+    image: ghcr.io/drakumus/nginx-image:latest
+    ports:
       - "80:80"
       - "443:443"
     volumes:
@@ -20,4 +26,7 @@ services:
       - ./data/certbot/www:/var/www/certbot
     # auto renewal
     entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
-  
+networks:
+  default:
+    external: true
+    name: db-network

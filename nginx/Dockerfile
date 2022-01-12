@@ -1,8 +1,6 @@
 FROM nginx:stable-alpine
 ARG DEV
-RUN mkdir /app
-WORKDIR /app
-COPY ./website/src .
+
 COPY ./nginx-release.conf /etc/nginx/nginx-release.conf
 COPY ./nginx-dev.conf /etc/nginx/nginx-dev.conf
 RUN if [ "$DEV" = "true" ]; then \
@@ -14,6 +12,6 @@ RUN if [ "$DEV" = "true" ]; then \
     fi
 EXPOSE 80
 EXPOSE 443
-CMD ["nginx", "-g", "daemon off;"]
 
+CMD ["nginx", "-g", "daemon off;"]
 LABEL org.opencontainers.image.source="https://github.com/drakumus/website"

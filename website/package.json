@@ -1,18 +1,29 @@
 {
-    "title": "Website",
-    "name": "website",
-    "version": "7.0.2",
-    "scripts": {},
-    "description": "My website.",
-    "keywords": [],
-    "author": "Rohan",
-    "contributors": [],
-    "repository": {
-        "type": "git",
-        "url": "https://github.com/StartBootstrap/startbootstrap-freelancer.git"
-    },
-    "dependencies": {
-        "bootstrap": "5.0.1"
-    },
-    "devDependencies": {}
+  "title": "Website",
+  "name": "website",
+  "version": "7.0.2",
+  "scripts": {},
+  "description": "My website.",
+  "keywords": [],
+  "author": "Rohan",
+  "contributors": [],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/StartBootstrap/startbootstrap-freelancer.git"
+  },
+  "dependencies": {
+    "body-parser": "^1.19.1",
+    "bootstrap": "5.0.1",
+    "cors": "^2.8.5",
+    "express": "^4.17.2",
+    "mysql2": "^2.3.3",
+    "path": "^0.12.7"
+  },
+  "devDependencies": {},
+  "bugs": {
+    "url": "https://github.com/StartBootstrap/startbootstrap-freelancer/issues"
+  },
+  "homepage": "https://github.com/StartBootstrap/startbootstrap-freelancer#readme",
+  "main": "index.js",
+  "license": "ISC"
 }
