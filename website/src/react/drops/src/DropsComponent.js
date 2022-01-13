@@ -80,13 +80,13 @@ class DropsComponent extends Component {
       </LogItemModal>
       <div class="container-fluid">
         <div class="row">
-          <div class="col-sm d-flex">
+          <div class="col-sm justify-content-center d-flex">
             <div class="row justify-content-center p-2">
               <div class="col-sm justify-content-end d-flex">
               <DropsTable static_members={this.state.static_members} main_drops={this.state.main_drops} alt_drops={this.state.alt_drops} bis={this.state.bis} item_types={item_types}>
                 </DropsTable>
               </div>
-              <div class="col-sm d-flex">
+              <div class="col-sm">
                 <button type="button" id="addDropButton" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addDropModal">+</button>
               </div>
               <div class="col-sm d-flex">

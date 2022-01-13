@@ -60,8 +60,6 @@ class DropsTable extends Component {
       if(Array.isArray(this.props.main_drops))
       {
         let item_drops = this.props.main_drops.filter((player_drop) => { return player_drop.item_type.toString() === item_type_index })
-        console.log("Item Drops:")
-        console.log(item_drops)
         for( let name_index in this.props.static_members )
         {
           let player_drops = item_drops.filter( (player_drop) => { return player_drop.player_id === this.props.static_members[name_index].id } )

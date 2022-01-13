@@ -36,12 +36,12 @@ class DropsList extends Component {
     let drop_rows = []
     for ( let drop_index in this.props.main_drops)
     {
-      console.log(this.props.main_drops)
+      let date=this.props.main_drops[drop_index].date_received.split('T')[0].split('-')
       let drop_row = (
       <tr>
         <td>{getPlayerNameFromID(this.props.main_drops[drop_index].player_id, this.props.static_members)}</td>
         <td>{item_types[this.props.main_drops[drop_index].item_type]}</td>
-        <td>{this.props.main_drops[drop_index].date_received}</td>
+        <td>{`${parseInt(date[1],10)}/${parseInt(date[2],10)}/${parseInt(date[0],10)}`}</td>
       </tr>)
       drop_rows.push(drop_row)
     }
