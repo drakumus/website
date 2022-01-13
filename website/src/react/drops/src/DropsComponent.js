@@ -6,17 +6,20 @@ import DropsList from './DropsList';
 
 
 const item_types = [
-  "Weapon",
-  "Head",
-  "Chest",
-  "Gloves",
-  "Legs",
-  "Boots",
-  "Earrings",
-  "Necklace",
-  "Bracelet",
-  "Ring1",
-  "Ring2"
+  "Weapon",         // 0
+  "Head",           // 1
+  "Chest",          // 2
+  "Gloves",         // 3
+  "Legs",           // 4
+  "Boots",          // 5
+  "Earrings",       // 6
+  "Necklace",       // 7
+  "Bracelet",       // 8
+  "Ring",           // 9
+  "Lube",           // 10
+  "Twine",          // 11
+  "Ether",          // 12
+  "Tomestone"       // 13
 ]
 
 class DropsComponent extends Component {

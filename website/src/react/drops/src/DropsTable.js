@@ -1,21 +1,7 @@
 import './drops_style.css';
 import React, {Component} from "react";
 
-const item_types = [
-  "Weapon",
-  "Head",
-  "Chest",
-  "Gloves",
-  "Legs",
-  "Boots",
-  "Earrings",
-  "Necklace",
-  "Bracelet",
-  "Ring1",
-  "Ring2"
-]
-
-function getPlayerItemReq(item_type, player_id, bis_data)
+function getPlayerItemReq(item_type, player_id, bis_data, item_types)
 {
   let player_bis = {}
   for(let index in bis_data)
@@ -30,9 +16,14 @@ function getPlayerItemReq(item_type, player_id, bis_data)
     console.log("Could not find player_id: " + player_id)
     return false;
   }
-
-  let item_key_name = `uses_raid_${item_types[item_type].toLowerCase()}`
-  return player_bis[item_key_name] != 0
+  if(item_type > 9)
+  {
+    return false;
+  } else
+  {
+    let item_key_name = `uses_raid_${item_types[item_type].toLowerCase()}`
+    return player_bis[item_key_name] != 0
+  }
 }
 
 class DropsTable extends Component {
@@ -51,10 +42,10 @@ class DropsTable extends Component {
       console.log("adding name")
       names.push((<th>{this.props.static_members[name_index].player_name}</th>))
     }
-
+    console.log(this.props.item_types)
     // populate item rows with acquired or not and whether they're BiS
     let item_rows = []
-    for ( let item_type_index in item_types )
+    for ( let item_type_index in this.props.item_types )
     {
       let item_td = []
       if(Array.isArray(this.props.main_drops))
@@ -63,12 +54,22 @@ class DropsTable extends Component {
         for( let name_index in this.props.static_members )
         {
           let player_drops = item_drops.filter( (player_drop) => { return player_drop.player_id === this.props.static_members[name_index].id } )
-          // console.log(player_drops)
+          let is_required = getPlayerItemReq(item_type_index, this.props.static_members[name_index].id, this.props.bis, this.props.item_types)
           if(player_drops.length > 0)
           {
+            if (item_type_index > 9) // dusting, twine, ether
+            {
+              item_td.push((<td class="styled-table-text">{player_drops.length}</td>))
+            }
+            else if(is_required)
+            {
+              item_td.push((<td>✔️</td>));
+            } else
+            {
+              item_td.push((<td class="styled-table-text">🗸</td>));
+            }
             // item_td.push((<td>{player_drops.length}</td>));
-            item_td.push((<td>✔️</td>));
-          } else if(!getPlayerItemReq(item_type_index, this.props.static_members[name_index].id, this.props.bis))
+          } else if(!is_required)
           {
             item_td.push((<td>-</td>));
           } else if(player_drops.length === 0)
@@ -79,8 +80,8 @@ class DropsTable extends Component {
 
       }
       item_rows.push((
-        <tr class={item_types[item_type_index] + "-tr"}>
-          <td>{item_types[item_type_index]}</td>
+        <tr class={this.props.item_types[item_type_index] + "-tr"}>
+          <td>{this.props.item_types[item_type_index]}</td>
           {item_td}
         </tr>
       ))

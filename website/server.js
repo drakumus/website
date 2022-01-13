@@ -7,6 +7,11 @@ var jsonParser = bodyParser.json()
 
 const app = express()
 
+const corsConfig = {
+  credentials: true,
+  origin: true
+}
+
 app.use(
   cors()
 )

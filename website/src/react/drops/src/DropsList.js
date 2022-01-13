@@ -1,20 +1,6 @@
 import './drops_style.css';
 import React, {Component} from "react";
 
-const item_types = [
-  "Weapon",
-  "Head",
-  "Chest",
-  "Gloves",
-  "Legs",
-  "Boots",
-  "Earrings",
-  "Necklace",
-  "Bracelet",
-  "Ring1",
-  "Ring2"
-]
-
 function getPlayerNameFromID(player_id, players)
 {
   for(let index in players)
@@ -40,7 +26,7 @@ class DropsList extends Component {
       let drop_row = (
       <tr>
         <td>{getPlayerNameFromID(this.props.main_drops[drop_index].player_id, this.props.static_members)}</td>
-        <td>{item_types[this.props.main_drops[drop_index].item_type]}</td>
+        <td>{this.props.item_types[this.props.main_drops[drop_index].item_type]}</td>
         <td>{`${parseInt(date[1],10)}/${parseInt(date[2],10)}/${parseInt(date[0],10)}`}</td>
       </tr>)
       drop_rows.push(drop_row)

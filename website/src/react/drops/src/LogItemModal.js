@@ -2,21 +2,6 @@ import React, {Component} from "react";
 import axios from 'axios';
 import './animations.css';
 
-// TODO move this to a common const file.
-const item_types = [
-  "Weapon",
-  "Head",
-  "Chest",
-  "Gloves",
-  "Legs",
-  "Boots",
-  "Earrings",
-  "Necklace",
-  "Bracelet",
-  "Ring1",
-  "Ring2"
-]
-
 function getPlayerID(player_name, players)
 {
   for(let index in players)
@@ -29,7 +14,7 @@ function getPlayerID(player_name, players)
   return null
 }
 
-function getItemTypeIndex(item_name)
+function getItemTypeIndex(item_name, item_types)
 {
   for(let index in item_types)
   {
@@ -55,7 +40,7 @@ class LogItemModal extends Component {
     e.preventDefault()
     let body = {
       player_id: getPlayerID(this.state.player_name, this.props.static_members),
-      item_type_index: getItemTypeIndex(this.state.item_type),
+      item_type_index: getItemTypeIndex(this.state.item_type, this.props.item_types),
       with_static: this.state.with_static,
       is_main: this.state.is_main,
       admin_key: this.state.admin_key
@@ -113,9 +98,9 @@ class LogItemModal extends Component {
     }
 
     let item_types_options = []
-    for ( let item_index in item_types )
+    for ( let item_index in this.props.item_types )
     {
-      item_types_options.push((<option>{item_types[item_index]}</option>))
+      item_types_options.push((<option>{this.props.item_types[item_index]}</option>))
     }
 
 
