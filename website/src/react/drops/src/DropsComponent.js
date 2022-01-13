@@ -30,28 +30,28 @@ class DropsComponent extends Component {
   }
 
   getStaticMembersDataAPI = async () => {
-    const static_members_response = await fetch('/static_members');
+    const static_members_response = await fetch('https://zoci.me/drops/static_members', {credentials: 'same-origin'});
     const static_members_body = await static_members_response.json();
     console.log(static_members_body)
     if (static_members_response.status !== 200) {
       throw Error(static_members_body.message)
     }
 
-    const main_drops_response = await fetch('/main_drops');
+    const main_drops_response = await fetch('https://zoci.me/drops/main_drops', {credentials: 'same-origin'});
     const main_drops_body = await main_drops_response.json();
     console.log(main_drops_body)
     if (main_drops_response.status !== 200) {
       throw Error(main_drops_body.message)
     }
 
-    const alt_drops_response = await fetch('/alt_drops');
+    const alt_drops_response = await fetch('https://zoci.me/drops/alt_drops', {credentials: 'same-origin'});
     const alt_drops_body = await alt_drops_response.json();
     console.log(alt_drops_body)
     if (alt_drops_response.status !== 200) {
       throw Error(alt_drops_body.message)
     }
 
-    const bis_response = await fetch('/bis');
+    const bis_response = await fetch('https://zoci.me/drops/bis', {credentials: 'same-origin'});
     const bis_body = await bis_response.json();
     console.log("bis")
     console.log(bis_body)

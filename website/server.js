@@ -21,23 +21,23 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, `./src/index.html`))
 })
 
-app.get('/static_members', async (req, res) => {
+app.get('/drops/static_members', async (req, res) => {
   res.send(await drops_db.getUsers())
 })
 
-app.get('/main_drops', async (req, res) => {
+app.get('/drops/main_drops', async (req, res) => {
   res.send(await drops_db.getMainDrops())
 })
 
-app.get('/alt_drops', async (req, res) => {
+app.get('/drops/alt_drops', async (req, res) => {
   res.send(await drops_db.getAltDrops())
 })
 
-app.get('/bis', async (req, res) => {
+app.get('/drops/bis', async (req, res) => {
   res.send(await drops_db.getStaticBis())
 })
 
-app.post('/log_drops', jsonParser, async (req, res) => {
+app.post('/drops/log_drops', jsonParser, async (req, res) => {
   console.log("here")
   console.log(req.body);
   let data = req.body

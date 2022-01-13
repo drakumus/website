@@ -73,7 +73,9 @@ class LogItemModal extends Component {
     */
     console.log(body)
 
-    let response = await axios.post('http://zoci.me:5000/log_drops', body).catch(err => {
+    let response = await axios.post('https://zoci.me/drops/log_drops', body, {
+      withCredentials: true
+    }).catch(err => {
       console.error(err);
       return {status: 403}
     });
