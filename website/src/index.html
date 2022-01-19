@@ -175,10 +175,8 @@
                     </div>
                     <!-- Footer About Text-->
                     <div class="col-lg-4">
-                        <h4 class="text-uppercase mb-4">Another Footer</h4>
-                        <p class="lead mb-0">
-                            Another footer cus who doesn't love shoving more information into another footer ;)
-                        </p>
+                        <h4 class="text-uppercase mb-4">A Current Project</h4>
+                        <a href="https://www.zoci.me/drops">FFXIV Static drops tool</a>
                     </div>
                 </div>
             </div>
@@ -211,7 +209,7 @@
                                     <h3>The Project Server</h3>
                                     <p class="mb-2 d-flex">
                                         Over the years I've had to spin up many a project server whether it be for hackathons or personal projects, it's always useful to have a space to run code contiguously.
-                                        I eventually settled on DigitalOcean as my provider for various reasons and so my first project droplet was created. 
+                                        I eventually settled on DigitalOcean as my provider for various reasons and so my first project droplet was created.
                                         This droplet lasted for about a year and a half running a large discord bot which tracked heuristics on ~500 runescape accounts using a mysql, discordjs, nodejs stack.
                                         Unfortunately it wasn't to last since a bot net took down the server in late 2019.
                                         Put off by the idea of spending another 15+ hours setting up a project server I shut down the discord bot and let the project gather dust for a year or two.
@@ -267,13 +265,13 @@
                                         Most of this processes is pretty self explanatory. Generate a docker image and upload it to the git registry.
                                         The most interesting step is actually "deploy the container and run init scripts where necessary".
                                         A bit long winded but it's actually running some basic setup by bash on the remote server using git secrets to connect and copy over the docker image.
-                                        Once that's done the project is deployed! 
+                                        Once that's done the project is deployed!
                                     </p>
                                     <p class="mt-1 mb-2 d-flex">
                                         Running this job every commit to master means I never have to worry about deploying to the server.
                                         All the hassle of sshing into a server to copy in a release and getting it up and running is gone.
                                         Now that I'm done writing up this blog all I have to do is git add, commit, push and it'll be on the internet for all to see in a matter of minutes.
-                                        To see my website project and build-and-deploy.yaml checkout any one of my project repositories deployed to the server found here: 
+                                        To see my website project and build-and-deploy.yaml checkout any one of my project repositories deployed to the server found here:
                                     </p>
                                     <a href="https://github.com/drakumus/website">Website</a>
                                     <br>
@@ -329,7 +327,7 @@
                                     <pre>
                                     <code class="mb-4">
 COMMANDS
-NOTE:  *  means the !myrsn command was already used 
+NOTE:  *  means the !myrsn command was already used
 -------------------------------------------------------------------------!myrsn
 !myrsn [Your Runescape Name]
 example: !myrsn Z0CI
@@ -337,22 +335,22 @@ Allows commands that require a name to automatically use the
 name provided with this command. i.e. !exp, !log, !clanexp
 -------------------------------------------------------------------------!max
 !max [Runescape Name]
-example: 
+example:
 1) !max Z0CI
-2) !max  * 
+2) !max  *
 Tells you how much exp a person has until they are maxed
 -------------------------------------------------------------------------!gdaily
 !gdaily [Optional Number]
 example:
 1) !gdaily
 2) !gdaily 15
-The graphical daily command lets you see the top 10 players by 
+The graphical daily command lets you see the top 10 players by
 default for the daily time period (from prev ingame reset to the next).
 You can also, optionally, provide a number to see up to the top 15
 players. Similarly, the !gweekly and !gmonthly command exist.
 If you don't like the graphic you can also use !daily but that
 does not take an optional number and may have a lower default.
-Reset times:  
+Reset times:
 daily:  0:00 ingame time (reset)
 weekly: 0:00 monday morning ingame (Sunday reset for NA)
 monthly: 0:00 on the first day of the month
@@ -361,7 +359,7 @@ monthly: 0:00 on the first day of the month
 !exp [Runescape Name]
 example:
 1) !exp Z0CI
-2) !exp  * 
+2) !exp  *
 Gives you your total exp gains for all time, the day, and the week.
 Day implies since the last reset and week implies since the last
 weekly reset. See Reset Times above for clarification on those.
@@ -370,8 +368,8 @@ weekly reset. See Reset Times above for clarification on those.
 !canjoin [Runescape Name]
 example:
 1) !canjoin Z0CI
-2) !canjoin  * 
-Lets you see a person's combat level, total level, and skill levels, 
+2) !canjoin  *
+Lets you see a person's combat level, total level, and skill levels,
 along with a message informing you if that person meets the
 minimum requirements to join Sorrow Knights. This does work
 with the !myrsn command so if you ever feel like double checking
@@ -384,44 +382,44 @@ example:
  !canjoin Z0CI, Saphira3883, iSlash, SFBrave
 Takes a list of up to 6 people and checks if their combat level or total level
 are high enough to join Sorrow Knights. Note this does not  work with
-the myrsn command. 
+the myrsn command.
 -------------------------------------------------------------------------!clanexp
 !clanexp [Runescape Name]
 1) !clanexp Z0CI
-2) !clanexp  * 
+2) !clanexp  *
 Lets you see a user's exp gained since they joined the clan.
 ⚠ This gets reset the second you leave the clan
 -------------------------------------------------------------------------!epeen
 !epeen [Runescape Name]
 example:
 1) !epeen Z0CI
-2) !epeen  * 
+2) !epeen  *
 Gives a full report on the size of your epeen. Provides ranking,
 percentile, exp, and epeen size for daily, weekly, monthly, and total
 exp gained. At the bottom are some pie charts showing your daily,
-weekly, monthly, and total exp vs the reset of the clan's. 
+weekly, monthly, and total exp vs the reset of the clan's.
 <img class="img-fluid w-50 rounded" src="assets/img/portfolio/compscape/epeen1.png" alt="..." />
 <img class="img-fluid w-50 rounded" src="assets/img/portfolio/compscape/epeen2.png" alt="..." />
 -------------------------------------------------------------------------!log
 !log [Runescape Name]
 example:
 1) !log Z0CI
-2) !log  * 
+2) !log  *
 Prints your adventure log if your runemetric profile is public.
 <img class="img-fluid w-50 rounded" src="assets/img/portfolio/compscape/log.png" alt="..." />
 -------------------------------------------------------------------------!ports
 !ports [hours:minutes]
 example: !ports 1:15
 @s you when the specified hours and minutes timer expires.
-Intended use is ports but can really be used as a general timer. 
+Intended use is ports but can really be used as a general timer.
 -------------------------------------------------------------------------Event Commands
 The commands !rank and !leaderboard exist. I'll probably
 expand this next time there's an event. Otherwise you can use
-those to get info about the last exp event we had. 
+those to get info about the last exp event we had.
 -------------------------------------------------------------------------!compexp
 !compexp [Runescape Name]
 1) !compexp Z0CI
-2) !compexp  * 
+2) !compexp  *
 Lets you see how much exp you have left to true max.
 (120 dg, invention, slayer, farming, and herblore)
 Includes exp left to max if you aren't maxed.
