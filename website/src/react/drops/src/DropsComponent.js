@@ -19,7 +19,8 @@ const item_types = [
   "Lube",           // 10
   "Twine",          // 11
   "Ether",          // 12
-  "Tomestone"       // 13
+  "Tomestone",      // 13
+  "Roborant",       // 14
 ]
 
 class DropsComponent extends Component {
