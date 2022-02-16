@@ -48,16 +48,17 @@ class DropsTable extends Component {
     for ( let item_type_index in this.props.item_types )
     {
       let item_td = []
-      if(Array.isArray(this.props.main_drops))
+      let drops = this.props.is_main ? this.props.main_drops : this.props.alt_drops
+      if(Array.isArray(drops))
       {
-        let item_drops = this.props.main_drops.filter((player_drop) => { return player_drop.item_type.toString() === item_type_index })
+        let item_drops = drops.filter((player_drop) => { return player_drop.item_type.toString() === item_type_index })
         for( let name_index in this.props.static_members )
         {
           let player_drops = item_drops.filter( (player_drop) => { return player_drop.player_id === this.props.static_members[name_index].id } )
           let is_required = getPlayerItemReq(item_type_index, this.props.static_members[name_index].id, this.props.bis, this.props.item_types)
           if(player_drops.length > 0)
           {
-            if (item_type_index > 9) // dusting, twine, ether
+            if (item_type_index > 9 || !this.props.is_main) // dusting, twine, ether
             {
               item_td.push((<td class="styled-table-text">{player_drops.length}</td>))
             }
@@ -69,7 +70,7 @@ class DropsTable extends Component {
               item_td.push((<td class="styled-table-text">🗸</td>));
             }
             // item_td.push((<td>{player_drops.length}</td>));
-          } else if(!is_required)
+          } else if(!is_required || !this.props.is_main)
           {
             item_td.push((<td>-</td>));
           } else if(player_drops.length === 0)

@@ -20,13 +20,14 @@ class DropsList extends Component {
 
   render() {
     let drop_rows = []
-    for ( let drop_index in this.props.main_drops)
+    let drops = this.props.is_main ? this.props.main_drops : this.props.alt_drops
+    for ( let drop_index in drops)
     {
-      let date=this.props.main_drops[drop_index].date_received.split('T')[0].split('-')
+      let date=drops[drop_index].date_received.split('T')[0].split('-')
       let drop_row = (
       <tr>
-        <td>{getPlayerNameFromID(this.props.main_drops[drop_index].player_id, this.props.static_members)}</td>
-        <td>{this.props.item_types[this.props.main_drops[drop_index].item_type]}</td>
+        <td>{getPlayerNameFromID(drops[drop_index].player_id, this.props.static_members)}</td>
+        <td>{this.props.item_types[drops[drop_index].item_type]}</td>
         <td>{`${parseInt(date[1],10)}/${parseInt(date[2],10)}/${parseInt(date[0],10)}`}</td>
       </tr>)
       drop_rows.push(drop_row)
@@ -36,7 +37,7 @@ class DropsList extends Component {
 
     let table = (
       <div className="App">
-        <table class="styled-table">
+        <table class="styled-table" id="drops-list">
           <thead>
             <tr id="table-head">
               <th>Player</th>

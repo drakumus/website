@@ -42,3 +42,24 @@
 .styled-table-text {
   font-size: 1.3em;
 }
+
+
+#addDropButton {
+  width: 50px;
+  height: 50px;
+}
+
+#addDropButtonText
+{
+  vertical-align: middle;
+}
+
+.limited-body {
+  display:block;
+  height:200px;
+  overflow-y:scroll;
+}
+
+.block-row {
+  display:block;
+}

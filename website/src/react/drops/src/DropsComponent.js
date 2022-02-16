@@ -25,6 +25,7 @@ const item_types = [
 
 class DropsComponent extends Component {
   state = {
+    is_main: true
   }
 
   componentDidMount() {
@@ -77,6 +78,17 @@ class DropsComponent extends Component {
     .catch(err => console.log(err))
   }
 
+  handleInputChanged = e => {
+    const target = e.target;
+
+    const name = target.name;
+    const value = target.type === 'checkbox' ? target.checked : target.value;
+
+    this.setState({
+      [name]: value
+    });
+  }
+
   render() {
     return (
     <div>
@@ -87,17 +99,29 @@ class DropsComponent extends Component {
           <div class="col-sm justify-content-center d-flex">
             <div class="row justify-content-center p-2">
               <div class="col-sm justify-content-end d-flex">
-              <DropsTable static_members={this.state.static_members} main_drops={this.state.main_drops} alt_drops={this.state.alt_drops} bis={this.state.bis} item_types={item_types}>
+              <DropsTable static_members={this.state.static_members} main_drops={this.state.main_drops} alt_drops={this.state.alt_drops} bis={this.state.bis} item_types={item_types} is_main={this.state.is_main}>
                 </DropsTable>
               </div>
               <div class="col-sm">
-                <button type="button" id="addDropButton" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addDropModal">+</button>
+                <div class="row p-2 justify-content-center">
+                  <button type="button" id="addDropButton" class="btn btn-primary align-items-center p-0" data-bs-toggle="modal" data-bs-target="#addDropModal">
+                    <h1 id="addDropButtonText m-0 p-0">
+                      +
+                    </h1>
+                  </button>
+                </div>
+                <div class="row m-2">
+                  <div class="form-check form-switch align-items-center justify-content-center d-flex m-0 p-0">
+                    <input class="form-check-input m-0 p-0" name="is_main" type="checkbox" id="isMainCheckbox" onChange={this.handleInputChanged} checked={this.state.is_main}/>
+                  </div>
+                </div>
+                <div class="row">
+                  <h3>{this.state.is_main ? "Main": "Alts"}</h3>
+                </div>
               </div>
               <div class="col-sm d-flex">
-                <div class="col-sm d-flex">
-                  <DropsList static_members={this.state.static_members} main_drops={this.state.main_drops} alt_drops={this.state.alt_drops} item_types={item_types}>
-                  </DropsList>
-                </div>
+                <DropsList static_members={this.state.static_members} main_drops={this.state.main_drops} alt_drops={this.state.alt_drops} item_types={item_types} is_main={this.state.is_main}>
+                </DropsList>
               </div>
             </div>
           </div>
