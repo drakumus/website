@@ -17,9 +17,9 @@
     "cors": "^2.8.5",
     "express": "^4.17.2",
     "mysql2": "^2.3.3",
-    "path": "^0.12.7"
+    "path": "^0.12.7",
+    "recharts": "^2.1.10"
   },
-  "devDependencies": {},
   "bugs": {
     "url": "https://github.com/StartBootstrap/startbootstrap-freelancer/issues"
   },

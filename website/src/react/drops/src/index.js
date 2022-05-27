@@ -2,11 +2,11 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 import './index.css';
 import reportWebVitals from './reportWebVitals';
-import DropsComponent from './DropsComponent'
+import StaticContainer from './StaticContainer';
 
 ReactDOM.render(
   <React.StrictMode>
-    <DropsComponent/>
+    <StaticContainer/>
   </React.StrictMode>,
   document.getElementById('root')
 );

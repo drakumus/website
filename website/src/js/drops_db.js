@@ -93,11 +93,49 @@ if(0)
   test();
 }
 
+// @return Array of Jsons containing player attendance data:
+// name
+// attendance_day
+// minutes_late
+async function getAttendance()
+{
+  let result = await query("SELECT * FROM attendance;")
+  return result
+}
+
+// Array of Jsons containing player attendance data:
+// name
+// attendance_day
+// minutes_late
+async function storeAttendance(player_attendances)
+{
+  let users_raw = getUsers()
+  let users = {}
+  for(let user_index in users_raw)
+  {
+    let user = users_raw[user_index]
+    users[user.display_name] = user.id
+  }
+
+  let query_string = ""
+  for(let data_point in player_attendances)
+  {
+    console.log(`${users[data_point.name]} ${new Date().toISOString().slice(0, 19).replace('T', ' ')} ${data_point.minutes_late}`)
+    query_string += `INSERT INTO \`attendance\` (\`user_id\`, \`attendance_day\`, \`minutes_late\`) VALUES ('${users[data_point.name]}', '${new Date().toISOString().slice(0, 19).replace('T', ' ')}', '${data_point.minutes_late}');`
+  }
+
+  console.log(query_string)
+  let result = await query(query_string)
+  return result
+}
+
 module.exports = {
   query,
   getUsers,
   getMainDrops,
   getAltDrops,
   getStaticBis,
-  storeDrop
+  getAttendance,
+  storeDrop,
+  storeAttendance
 }

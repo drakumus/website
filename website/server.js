@@ -60,4 +60,25 @@ app.get('/drops', (req, res) => {
   res.sendFile(path.join(__dirname, `./src/react/drops/build/index.html`))
 })
 
+app.get('/attendance/static', async (req, res) => {
+  res.send(await drops_db.getAttendance())
+})
+
+app.post('/attendance/log_attendance', jsonParser, async (req, res) => {
+  console.log(req.body)
+  let data = req.body
+  if (data.admin_key !== "wah4reward")
+  {
+    res.status(403).send("Invalid admin key.")
+  } else
+  {
+    let result = await drops_db.storeDrop(data.player_id, data.item_type_index, data.with_static, data.is_main)
+    res.status(201).send(result)
+  }
+})
+
+app.get('/attendance', (req, res) => {
+  res.sendFile(path.join(__dirname, "./src/react/attendance/build/index.html"))
+})
+
 app.listen(5000, () => console.log('Server is up and running'))

@@ -37,7 +37,7 @@ class DropsList extends Component {
 
     let table = (
       <div className="App">
-        <table class="styled-table" id="drops-list">
+        <table class="styled-table overflow-scroll" id="drops-list">
           <thead>
             <tr id="table-head">
               <th>Player</th>
