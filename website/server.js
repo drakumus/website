@@ -66,13 +66,14 @@ app.get('/attendance/static', async (req, res) => {
 
 app.post('/attendance/log_attendance', jsonParser, async (req, res) => {
   console.log(req.body)
-  let data = req.body
-  if (data.admin_key !== "wah4reward")
+  let body = req.body
+  let data = req.body.data
+  if (body.admin_key !== "wah4reward")
   {
     res.status(403).send("Invalid admin key.")
   } else
   {
-    let result = await drops_db.storeDrop(data.player_id, data.item_type_index, data.with_static, data.is_main)
+    let result = await drops_db.storeAttendance(data)
     res.status(201).send(result)
   }
 })

@@ -1,5 +1,7 @@
 import React, {Component} from "react";
-import { LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip } from 'recharts';
+import { LineChart, Line, BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip } from 'recharts';
+import LogAttendanceModal from "./LogAttendanceModal";
+import './drops_style.css';
 
 // const data = [{name: 'Page A', uv: 400, pv: 2400, amt: 2400}, ...];
 
@@ -11,7 +13,7 @@ class AttendenceComponent extends Component{
     componentDidMount() {
         this.getStaticmemberAttendance()
             .then(res => {
-              this.setState({attendance: res})
+              this.setState(res)
               console.log(res)
             })
             .catch(err => console.log(err));
@@ -52,7 +54,10 @@ class AttendenceComponent extends Component{
             player_attendance_data.push(data_point)
         }
 
-        return player_attendance_data
+        return {
+            static_members: users,
+            attendance: player_attendance_data
+        }
     }
 
     
@@ -75,6 +80,7 @@ class AttendenceComponent extends Component{
                 }
             }
 
+            // 2 passes easier.
             const num_days = Object.keys(attendance_by_date).length
             if(!(row.name in names))
             {
@@ -105,7 +111,7 @@ class AttendenceComponent extends Component{
 
             for(const name in attendance_by_date[date])
             {
-                tmp[name] = attendance_by_date[date][name].attendance_percent
+                tmp[name] = attendance_by_date[date][name].attendance_percent * 100
             }
 
             console.log(tmp)
@@ -120,18 +126,57 @@ class AttendenceComponent extends Component{
         }
         console.log(lines)
 
+        let bar_data = []
+        for(const name in names)
+        {
+            bar_data.push({
+                name: name,
+                attendance_percent: names[name].attendance_percent * 100,
+                minutes_late: names[name].minutes_late
+            })
+        }
+
         return (
-            <div className="container-fluid">
-                <div className="row">
-                    <div className="col-sm justify-content-center d-flex">
-                        <div class="row justify-content-center p-2">
-                            <LineChart width={800} height={400} data={date_data} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
-                                {lines}
-                                <CartesianGrid stroke="#ccc" strokeDasharray="5 5" />
-                                <XAxis dataKey="date" />
-                                <YAxis tickFormatter={tick => `${tick*100}%`}/>
-                                <Tooltip />
-                            </LineChart>
+            <div>
+                <div className="position-absolute top-0 end-0 pt-1 mt-5 me-2">
+                    <button type="button" id="logAttendanceButton" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#logAttendanceModal">
+                        <div className="d-flex justify-content-center align-items-center">+</div>
+                    </button>
+                </div>
+                <LogAttendanceModal static_members={this.state.static_members}>
+                </LogAttendanceModal>
+                <div className="container-fluid">
+                    <div className="row">
+                        <div className="col-sm">
+                            <div class="row justify-content-center p-2">
+                                <LineChart width={800} height={400} data={date_data} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                                    {lines}
+                                    <CartesianGrid stroke="#ccc" strokeDasharray="5 5" />
+                                    <XAxis dataKey="date" />
+                                    <YAxis tickFormatter={tick => `${tick}%`}/>
+                                    <Tooltip />
+                                </LineChart>
+                            </div>
+                            <div class="row justify-content-center p-2">
+                                <BarChart width={800} height={400} data={bar_data} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                                    {lines}
+                                    <CartesianGrid stroke="#ccc" strokeDasharray="5 5" />
+                                    <XAxis dataKey="name" />
+                                    <YAxis tickFormatter={tick => `${tick}%`}/>
+                                    <Bar dataKey="attendance_percent" fill="#8884d8"/>
+                                    <Tooltip />
+                                </BarChart>
+                            </div>
+                            <div class="row justify-content-center p-2">
+                                <BarChart width={800} height={400} data={bar_data} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                                    {lines}
+                                    <CartesianGrid stroke="#ccc" strokeDasharray="5 5" />
+                                    <XAxis dataKey="name" />
+                                    <YAxis/>
+                                    <Bar dataKey="minutes_late" fill="#8884d8"/>
+                                    <Tooltip />
+                                </BarChart>
+                            </div>
                         </div>
                     </div>
                 </div>

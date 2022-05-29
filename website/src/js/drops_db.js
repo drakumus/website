@@ -109,7 +109,7 @@ async function getAttendance()
 // minutes_late
 async function storeAttendance(player_attendances)
 {
-  let users_raw = getUsers()
+  let users_raw = await getUsers()
   let users = {}
   for(let user_index in users_raw)
   {
@@ -118,8 +118,9 @@ async function storeAttendance(player_attendances)
   }
 
   let query_string = ""
-  for(let data_point in player_attendances)
+  for(let index in player_attendances)
   {
+    let data_point = player_attendances[index]
     console.log(`${users[data_point.name]} ${new Date().toISOString().slice(0, 19).replace('T', ' ')} ${data_point.minutes_late}`)
     query_string += `INSERT INTO \`attendance\` (\`user_id\`, \`attendance_day\`, \`minutes_late\`) VALUES ('${users[data_point.name]}', '${new Date().toISOString().slice(0, 19).replace('T', ' ')}', '${data_point.minutes_late}');`
   }
