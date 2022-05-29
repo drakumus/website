@@ -30,6 +30,10 @@ app.get('/drops/static_members', async (req, res) => {
   res.send(await drops_db.getUsers())
 })
 
+app.get('/drops/active_static_members', async (req, res) => {
+  res.send(await drops_db.getActiveStaticMembers())
+})
+
 app.get('/drops/main_drops', async (req, res) => {
   res.send(await drops_db.getMainDrops())
 })

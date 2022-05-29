@@ -56,6 +56,12 @@ async function getUsers()
   return result
 }
 
+async function getActiveStaticMembers()
+{
+  let result = await query("SELECT users.*, active_static.* FROM `users` JOIN `active_static` ON users.id = active_static.user_id;")
+  return result
+}
+
 async function getMainDrops()
 {
   let result = await query("SELECT * FROM main_drops;")
@@ -116,15 +122,16 @@ async function storeAttendance(player_attendances)
     let user = users_raw[user_index]
     users[user.display_name] = user.id
   }
-
-  let query_string = ""
+  let query_string = `INSERT INTO \`attendance\` (\`user_id\`, \`attendance_day\`, \`minutes_late\`) VALUES `
+  let values = []
   for(let index in player_attendances)
   {
     let data_point = player_attendances[index]
     console.log(`${users[data_point.name]} ${new Date().toISOString().slice(0, 19).replace('T', ' ')} ${data_point.minutes_late}`)
-    query_string += `INSERT INTO \`attendance\` (\`user_id\`, \`attendance_day\`, \`minutes_late\`) VALUES ('${users[data_point.name]}', '${new Date().toISOString().slice(0, 19).replace('T', ' ')}', '${data_point.minutes_late}');`
+    let values_string = `(${users[data_point.name]}, '${new Date().toISOString().slice(0, 19).replace('T', ' ')}', ${data_point.minutes_late})`
+    values.push(values_string)  
   }
-
+  query_string += values.join(',') + ';'
   console.log(query_string)
   let result = await query(query_string)
   return result
@@ -138,5 +145,6 @@ module.exports = {
   getStaticBis,
   getAttendance,
   storeDrop,
-  storeAttendance
+  storeAttendance,
+  getActiveStaticMembers
 }

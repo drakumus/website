@@ -77,7 +77,7 @@ class LogAttendanceModal extends Component {
       }, 500)
     } else
     {
-      // this.props.updateAttendance();
+      this.props.updateAttendance();
     }
   }
 
@@ -144,7 +144,7 @@ class LogAttendanceModal extends Component {
                   </div>
                 </div>
                 <div class="modal-footer">
-                  <button onClick={this.handleLogAttendance} id="logAttendanceButton" type="button" class="btn btn-primary">Log</button>
+                  <button onClick={this.handleLogAttendance} id="logAttendanceButton" type="button" class="btn btn-primary flex-grow-1">Log</button>
                 </div>
               </form>
             </div>

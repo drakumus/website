@@ -99,7 +99,7 @@ class DropsComponent extends Component {
           <div class="col-sm justify-content-center d-flex">
             <div class="row justify-content-center p-2">
               <div class="col-sm justify-content-end d-flex">
-              <DropsTable static_members={this.state.static_members} main_drops={this.state.main_drops} alt_drops={this.state.alt_drops} bis={this.state.bis} item_types={item_types} is_main={this.state.is_main}>
+                <DropsTable static_members={this.state.static_members} main_drops={this.state.main_drops} alt_drops={this.state.alt_drops} bis={this.state.bis} item_types={item_types} is_main={this.state.is_main}>
                 </DropsTable>
               </div>
               <div class="col-sm">

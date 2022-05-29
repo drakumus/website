@@ -20,13 +20,6 @@ class AttendenceComponent extends Component{
     }
 
     getStaticmemberAttendance = async() => {
-        //const attendance_response = await fetch('https://zoci.me//attendance/static', {credentials: 'same-origin'});
-        const attendance_response = await fetch('https://zoci.me/attendance/static', {credentials: 'same-origin'});
-        const attendance = await attendance_response.json();
-        console.log(attendance)
-        if (attendance_response.status !== 200) {
-          throw Error(attendance.message)
-        }
 
         const users_response = await fetch('https://zoci.me/drops/static_members', {credentials: 'same-origin'});
         const users = await users_response.json()
@@ -40,6 +33,20 @@ class AttendenceComponent extends Component{
         {
             let user = users[index]
             users_by_id[user.id] = user.display_name
+        }
+        
+        const active_static_response = await fetch('https://zoci.me/drops/active_static_members', {credentials: 'same-origin'})
+        const active_static_members = await active_static_response.json()
+        console.log(active_static_members)
+        if (active_static_response.status != 200) {
+            throw Error(users.message)
+        }
+
+        const attendance_response = await fetch('https://zoci.me/attendance/static', {credentials: 'same-origin'});
+        const attendance = await attendance_response.json();
+        console.log(attendance)
+        if (attendance_response.status !== 200) {
+          throw Error(attendance.message)
         }
 
         let player_attendance_data = []
@@ -56,21 +63,28 @@ class AttendenceComponent extends Component{
 
         return {
             static_members: users,
-            attendance: player_attendance_data
+            attendance: player_attendance_data,
+            static_members_by_id: users_by_id,
+            active_static_members: active_static_members
         }
     }
 
-    
-    render() {
+    updateAttendance = async () => {
+        this.getStaticmemberAttendance()
+        .then(res => this.setState(res))
+        .catch(err => console.log(err))
+    }
+
+    getAttendanceByDate() {
         let attendance_by_date = {}
-        let names = {}
+
         // sort by date using hash table for ease of use
         for(const row_index in this.state.attendance)
         {
             let row = this.state.attendance[row_index]
-            console.log(row)
             
-            let date = row.attendance_day.split('T')[0].split('-').join('/')
+            // strip hours/min from date object from mysql db
+            let date = new Date(new Date(Date.parse(row.attendance_day)).toDateString()).getTime()
 
             attendance_by_date[date] = {
                 ...attendance_by_date[date],
@@ -79,50 +93,120 @@ class AttendenceComponent extends Component{
                     minutes_late: row.minutes_late
                 }
             }
-
-            // 2 passes easier.
-            const num_days = Object.keys(attendance_by_date).length
-            if(!(row.name in names))
-            {
-                names[row.name] = 
-                {
-                    attendance_percent: 1/num_days,
-                    minutes_late: row.minutes_late
-                }
-            } else
-            {
-                names[row.name].attendance_percent = (names[row.name].attendance_percent/num_days) + (1/num_days)
-                names[row.name].minutes_late += row.minutes_late
-            }
-            // add percent at this point after
-            attendance_by_date[date][row.name].attendance_percent = names[row.name].attendance_percent
-
-            console.log(names[row.name])
         }
+
+        console.log(attendance_by_date)
+
+        return attendance_by_date
+    }
+
+    initNames() {
+        let names = {}
+
+        for(const index in this.state.active_static_members)
+        {
+            let active_static_member = this.state.active_static_members[index]
+
+            names[active_static_member.display_name] = {
+                start_date: new Date(new Date(Date.parse(active_static_member.start_date)).toDateString()).getTime(),
+                num_days: 0,
+                days_attended: 0,
+                attendance_percent: 100,
+                minutes_late: 0
+            }
+        }
+
+        console.log(names)
+
+        return names
+    }
+
+    getAttendancePercent(sorted_dates, attendance_by_date, names)
+    {
+        console.log(sorted_dates)
+        for(const date_index in sorted_dates)
+        {
+            let date = sorted_dates[date_index]
+            let day_attendance = attendance_by_date[date]
+            for(const name in names)
+            {
+                if(day_attendance[name])
+                {
+                    console.log(`${name} found`)
+                    names[name].num_days += 1
+                    names[name].days_attended += 1
+                    names[name].minutes_late += day_attendance[name].minutes_late
+                } else if(date >= names[name].start_date)
+                { 
+                    console.log(`${name} not found, in attendance range`)
+                    // Increment num days if the person didn't show up on a day's attendance
+                    names[name].num_days += 1
+                    // have to init the object since it didn't exist before
+                    day_attendance[name] = {
+                        minutes_late: 0
+                    }
+
+                } else // not past start date yet don't do anything
+                {
+                    console.log(`${name} not found and outside attendance range`)
+                    continue
+                }
+
+                names[name].attendance_percent = ((names[name].days_attended / names[name].num_days) * 100).toFixed(2)
+                day_attendance[name].attendance_percent = names[name].attendance_percent
+            }
+            console.log(day_attendance)
+        }
+
+        let result = {
+            names: names,
+            attendance_by_date: attendance_by_date
+        }
+
+        console.log(result)
+        
+        return result
+    }
+    
+    render() {
+        let attendance_by_date = this.getAttendanceByDate()
+        let sorted_dates = Object.keys(attendance_by_date).sort((a,b) => parseInt(a)-parseInt(b))
+        let names = this.initNames()
+
+        let result = this.getAttendancePercent(sorted_dates, attendance_by_date, names)
+        attendance_by_date = result.attendance_by_date
+        names = result.names
+        
 
         let date_data = []
         // create date attendance table data
-        for(const date in attendance_by_date)
+        for(const date_index in sorted_dates)
         {
+            let date = parseInt(sorted_dates[date_index])
+            let date_obj = new Date(parseInt(date))
             let tmp =
             {
-                date: date
+                date: `${date_obj.getMonth()+1}/${date_obj.getDate()}/${date_obj.getFullYear()}`
             }
 
             for(const name in attendance_by_date[date])
             {
-                tmp[name] = attendance_by_date[date][name].attendance_percent * 100
+                tmp[name] = attendance_by_date[date][name].attendance_percent
             }
 
             console.log(tmp)
             date_data.push(tmp)
         }
 
+        // let line_colors = ["#fac89e", "#e3e891", "#c2fc99", "#a3fcb3", "#92e8d5", "#96c8f2", "#ada8ff", "#ce94f7", "#ed94dd", "#fea8bb"]
+
         // create lines
         let lines = []
+        let idx = 0
         for(const name in names)
         {
             lines.push(<Line type="monotone" dataKey={name} stroke="#8884d8" />)
+            idx += 1
         }
         console.log(lines)
 
@@ -131,7 +215,7 @@ class AttendenceComponent extends Component{
         {
             bar_data.push({
                 name: name,
-                attendance_percent: names[name].attendance_percent * 100,
+                attendance_percent: names[name].attendance_percent,
                 minutes_late: names[name].minutes_late
             })
         }
@@ -143,38 +227,47 @@ class AttendenceComponent extends Component{
                         <div className="d-flex justify-content-center align-items-center">+</div>
                     </button>
                 </div>
-                <LogAttendanceModal static_members={this.state.static_members}>
+                <LogAttendanceModal static_members={this.state.active_static_members} updateAttendance={this.updateAttendance.bind(this)}>
                 </LogAttendanceModal>
                 <div className="container-fluid">
                     <div className="row">
                         <div className="col-sm">
+                            <div class="row p-2">
+                                <h1 class="text-center">By Day</h1>
+                            </div>
                             <div class="row justify-content-center p-2">
-                                <LineChart width={800} height={400} data={date_data} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                                <LineChart width={1000} height={400} data={date_data} margin={{ top: 5, right: 20, bottom: 50, left: 0 }}>
                                     {lines}
                                     <CartesianGrid stroke="#ccc" strokeDasharray="5 5" />
-                                    <XAxis dataKey="date" />
+                                    <XAxis dataKey="date"/>
                                     <YAxis tickFormatter={tick => `${tick}%`}/>
                                     <Tooltip />
                                 </LineChart>
                             </div>
-                            <div class="row justify-content-center p-2">
-                                <BarChart width={800} height={400} data={bar_data} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
-                                    {lines}
-                                    <CartesianGrid stroke="#ccc" strokeDasharray="5 5" />
-                                    <XAxis dataKey="name" />
-                                    <YAxis tickFormatter={tick => `${tick}%`}/>
-                                    <Bar dataKey="attendance_percent" fill="#8884d8"/>
-                                    <Tooltip />
-                                </BarChart>
+                            <div class="row p-2">
+                                <h1 class="text-center">Total</h1>
                             </div>
                             <div class="row justify-content-center p-2">
-                                <BarChart width={800} height={400} data={bar_data} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                                <BarChart width={1000} height={400} data={bar_data} margin={{ top: 5, right: 20, bottom: 50, left: 0 }}>
+                                    {lines}
+                                    <CartesianGrid stroke="#ccc" strokeDasharray="5 5" />
+                                    <XAxis dataKey="name" offset="bottom"/>
+                                    <YAxis tickFormatter={tick => `${tick}%`}/>
+                                    <Tooltip />
+                                    <Bar dataKey="attendance_percent" fill="#8884d8"/>
+                                </BarChart>
+                            </div>
+                            <div class="row p-2">
+                                <h1 class="text-center">Total Minutes Late</h1>
+                            </div>
+                            <div class="row justify-content-center p-2">
+                                <BarChart width={1000} height={400} data={bar_data} margin={{ top: 5, right: 20, bottom: 15, left: 0 }}>
                                     {lines}
                                     <CartesianGrid stroke="#ccc" strokeDasharray="5 5" />
                                     <XAxis dataKey="name" />
                                     <YAxis/>
-                                    <Bar dataKey="minutes_late" fill="#8884d8"/>
                                     <Tooltip />
+                                    <Bar dataKey="minutes_late" fill="#8884d8"/>
                                 </BarChart>
                             </div>
                         </div>
