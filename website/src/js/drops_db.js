@@ -1,10 +1,10 @@
 const mysql = require("mysql2");
 
 config = {
-  host: process.env.HOST,//'zoci.me',
-  user: process.env.USER,//'gui',
-  password: process.env.PASS,//'7ufKb4gui!@',
-  database: process.env.DATABASE//'website'
+  host: process.env.HOST,
+  user: process.env.USER,
+  password: process.env.PASS,
+  database: process.env.DATABASE
 }
 
 async function query(query_string)

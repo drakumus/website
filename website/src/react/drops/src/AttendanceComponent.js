@@ -212,7 +212,7 @@ class AttendenceComponent extends Component{
 
         let bar_data = []
         for(const name in names)
-        {
+        { 
             bar_data.push({
                 name: name,
                 attendance_percent: names[name].attendance_percent,
