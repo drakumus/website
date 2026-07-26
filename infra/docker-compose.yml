@@ -1,0 +1,55 @@
+services:
+  caddy:
+    image: caddy:2-alpine
+    # host networking: binds :80/:443 on the host and reaches web/api/jellyfin via localhost.
+    network_mode: host
+    restart: unless-stopped
+    environment:
+      # ACME contact email, from infra/.env (gitignored). Empty is fine.
+      - ACME_EMAIL=${ACME_EMAIL:-}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - web
+      - api
+
+  web:
+    build:
+      context: ..
+      dockerfile: app/Dockerfile
+    image: zoci-web:latest
+    restart: unless-stopped
+    # loopback-only: reachable by Caddy (host) and the box, never the LAN/internet.
+    ports:
+      - "127.0.0.1:8080:80"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  api:
+    build:
+      context: ..
+      dockerfile: api/Dockerfile
+    image: zoci-api:latest
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      - STATUS_FILE=/status/status.json
+    # Read-only container-health file, written by the host cron (infra/status/write-status.sh).
+    # No Docker socket here: the internet-facing api only reads a plain file.
+    volumes:
+      - ./status:/status:ro
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  caddy_data:
+  caddy_config:

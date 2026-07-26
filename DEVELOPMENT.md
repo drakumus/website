@@ -1,0 +1,136 @@
+# Development
+
+Local dev guide for zoci.me. Dev and "prod" run on the same home server; there's no
+CI/CD. Design docs live in `~/specs/` (`zoci-website-relaunch.md`,
+`zoci-networking.md`, `zoci-implementation-plan.md`).
+
+## Prerequisites (one-time)
+
+**Node** — via `nvm`, pinned to Node 22 (`.nvmrc`). If `node` isn't found in a shell,
+nvm didn't load — open a new terminal or run `nvm use`:
+
+```sh
+nvm install   # reads .nvmrc (Node 22)
+nvm use
+```
+
+**Dependencies** — one install at the repo root covers all workspaces:
+
+```sh
+npm install
+```
+
+**Playwright browsers** (for verification) — download binaries + install system libs.
+The system libs need root (`apt`); run once:
+
+```sh
+npx playwright install chromium webkit
+# system libraries (needs sudo; node referenced by absolute path so nvm PATH isn't needed):
+sudo /home/rohan/.nvm/versions/node/v22.23.1/bin/node \
+  node_modules/@playwright/test/cli.js install-deps chromium webkit
+```
+
+## Run the dev loop
+
+```sh
+npm run dev        # app + api together (concurrently)
+```
+
+- **App** (Vite + React + Mantine): http://localhost:3000 — and, since Vite binds all
+  interfaces (`host: true`), reachable from other LAN devices at
+  **http://<your-box-lan-ip>:3000** (this box is headless; preview from your
+  laptop/phone). Find the LAN IP with `hostname -I`.
+- **API** (Fastify): http://localhost:8001 — dev runs on **:8001**, not :8000, so it can
+  coexist with the production `api` container (which holds :8000 on this box). The Vite
+  proxy (`app/vite.config.ts`) targets :8001 accordingly.
+- `GET /api/*` on the app is proxied to the API with the `/api` prefix **stripped**,
+  mirroring prod Caddy's `handle_path /api/*` (so `/api/health` → API `/health`).
+
+Run them separately if needed:
+
+```sh
+npm run dev:app    # Vite on :3000
+npm run dev:api    # Fastify on :8001 (tsx watch)
+```
+
+## Project layout (npm workspaces)
+
+```
+app/       # Vite + React + Mantine + motion (TS)   -> web image
+api/       # Fastify (Node/TS), /health in v1        -> api image
+shared/    # zod schemas + shared TS types (@zoci/shared)
+tests/     # Playwright smoke suite
+infra/     # docker-compose.yml, Caddyfile, vps/     (added in later phases)
+```
+
+**Shared contracts:** cross-boundary types/schemas live in `shared/src/index.ts` and
+are imported by both `app` and `api` as `@zoci/shared`. Change them there once — a
+breaking change is a compile error on both ends, no codegen.
+
+## Build
+
+```sh
+npm run build                    # builds the app (tsc + vite build -> app/dist)
+npm run build --workspace api    # compiles the api (-> api/dist)
+```
+
+## Verify changes (Playwright)
+
+Two complementary tools (see spec §5):
+
+**1. Committed smoke suite** — the scripted gate. Runs on 3 projects: desktop
+(Chromium), Pixel 5 (Chromium), iPhone 13 (WebKit).
+
+```sh
+npm run test:e2e                             # all projects, against dev (:3000)
+npx playwright test --project=desktop        # single project
+BASE_URL=https://zoci.me npm run test:e2e    # target the live site (Phase 7)
+```
+
+The suite auto-starts the dev server for local runs (reuses one if already up).
+
+**2. Playwright MCP + `playwright-verifier` subagent** — agent-driven visual/interaction
+check for "does this new UI actually look right." Configured in `.mcp.json`
+(Claude Code approves the MCP server on first use) and `.claude/agents/
+playwright-verifier.md`. After a UI change, run the dev server and delegate to the
+`playwright-verifier` subagent; it runs the smoke suite and captures desktop + mobile
+screenshots into `.playwright-mcp/`.
+
+## Secret hygiene (this repo is public)
+
+Infrastructure details are **reconnaissance for attackers** — never commit real IPs,
+the tailnet name, VPS hostname, or emails. Keep them out of tracked files:
+
+- Real addresses live only in **`PROJECT_STATUS.md`** (gitignored, local) and
+  **`infra/.env`** (gitignored). Tracked files use placeholders (`<VPS_PUBLIC_IP>`,
+  `<HOME_TAILNET_IP>`, …) or read from env (Caddy ACME email = `{$ACME_EMAIL}`).
+- **Scan before every push:**
+  ```sh
+  make check-secrets     # or: bash scripts/check-secrets.sh
+  ```
+  It greps tracked files for IPs, emails, and `*.ts.net` names and exits non-zero on a
+  hit (allowlists `127.0.0.1`, `0.0.0.0`, `::1`, `example.com`, and `<placeholders>`).
+- `infra/.env.example` is the tracked template; copy it to `infra/.env` and fill in.
+
+## Git
+
+- **`mainline`** — active branch (fresh start). **`00-webiste-original`** — the legacy
+  site, preserved untouched.
+- Pushing `mainline` / `00-webiste-original` and setting the default branch on GitHub
+  need your GitHub credentials (not configured here yet):
+  ```sh
+  git push -u origin mainline
+  git push origin 00-webiste-original
+  ```
+
+## Troubleshooting
+
+- **`node: command not found`** — nvm not loaded in this shell: `nvm use` (or open a
+  new terminal; the loader is in `~/.zshrc`).
+- **Playwright: "executable doesn't exist" / missing libs** — rerun the browser +
+  `install-deps` steps above. WebKit (iPhone 13) needs the system libs; Chromium-only
+  won't cover it.
+- **Port already in use (3000/8001)** — an old `npm run dev` is still running; stop it
+  (`pkill -f vite`, `pkill -f "tsx watch"`) or find it with `lsof -i :3000`.
+- **`/api/health` 404 in dev** — the Vite proxy rewrite (strip `/api`) must match the
+  API's unprefixed routes; see `app/vite.config.ts`.

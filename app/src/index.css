@@ -1,0 +1,273 @@
+:root {
+  color-scheme: light dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background-color: #131417;
+}
+/*
+ * Dark stone background. One self-contained SVG tile: a base color plus two blended
+ * fractal-noise layers — a fine grain (high frequency, 4 octaves) for a small, subtle
+ * stone texture, and a faint low-frequency layer that gently breaks up uniformity.
+ * It's a static background-image (not a live CSS filter), so the browser rasterizes it
+ * ONCE and tiles it — no runtime cost. A faint white glow sits on top.
+ * Technique: feTurbulence granite (tympanus.net/codrops).
+ */
+body {
+  margin: 0;
+  min-height: 100dvh;
+  background-color: #131417;
+  /* Stone tile scrolls with the content. No background-attachment: fixed — that forces
+     a full-viewport repaint on every scroll frame, which starves anything animating
+     during the scroll (the portfolio cards' entrance stutter came from here). */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Cdefs%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' seed='7' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Cfilter id='d'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.3' numOctaves='3' seed='11' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3C/defs%3E%3Crect width='400' height='400' fill='%23131417'/%3E%3Crect width='400' height='400' filter='url(%23d)' opacity='0.12' style='mix-blend-mode:soft-light'/%3E%3Crect width='400' height='400' filter='url(%23g)' opacity='0.3' style='mix-blend-mode:overlay'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 400px 400px;
+}
+
+/*
+ * Soft top glow, on its own fixed GPU-composited layer. A fixed gradient element is
+ * rasterized once and merely re-composited as you scroll — unlike
+ * background-attachment: fixed it never repaints, so scrolling (and cards animating in
+ * mid-scroll) stays smooth. Sits behind content via z-index -1.
+ */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(1200px 820px at 50% 0%, rgba(255, 255, 255, 0.05), transparent 60%);
+}
+
+a {
+  color: inherit;
+}
+
+/*
+ * Hero title — dark-red fill with a crisp white outline around the glyphs.
+ * paint-order: stroke fill draws the stroke first, then the fill on top, so the
+ * white border stays outside the letters (not eating into the red).
+ */
+.title-accent {
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  -webkit-text-stroke: 2px #ffffff;
+  paint-order: stroke fill;
+  /*
+   * Left-to-right shimmer: a soft white light band sweeps once across the letters'
+   * (otherwise transparent) fill on page load, while the stroke stays white.
+   * background-clip: text confines the sheen to the glyphs. Delayed slightly so it
+   * fires just after the header has faded in, then rests off-screen.
+   */
+  background-image: linear-gradient(
+    100deg,
+    transparent 35%,
+    rgba(255, 255, 255, 0.85) 50%,
+    transparent 65%
+  );
+  background-size: 200% 100%;
+  background-repeat: no-repeat;
+  background-position: -120% 0;
+  -webkit-background-clip: text;
+  background-clip: text;
+  /* one sweep on load: 1.6s, after a short 0.15s delay; `both` holds the end. */
+  animation: shimmer-sweep 1.6s ease-in-out 0.15s 1 both;
+}
+
+/*
+ * With background-size: 200%, a larger position value shifts the band toward the
+ * LEFT. So to sweep left-to-right the band starts off the left (220%) and ends off
+ * the right (-120%). Shared by the title and the metal-frame gleam.
+ */
+@keyframes shimmer-sweep {
+  from {
+    background-position: 220% 0;
+  }
+  to {
+    background-position: -120% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .title-accent,
+  .frame-shimmer {
+    animation: none;
+  }
+}
+
+/*
+ * Gold-trimmed iron frame, entirely from the OSRS `dialog/iron_rivets_*` art so
+ * corners and rails share the same palette (guaranteed match). Drawn as an
+ * ::after OVERLAY (not a background) so it paints ABOVE card content — including
+ * the flush thumbnail image on portfolio cards.
+ *   • corners — `iron_rivets_corner_*` (25×30), pinned to each corner
+ *   • rails   — the matching edge tiles, each with its gold band pre-placed for
+ *               its side, tiled along the edge (bottom→top, edge_top→bottom,
+ *               edge_right→left, vertical→right; see resources/README.md)
+ * Corners are listed first so they paint over the tiled rail ends. Pixelated.
+ */
+.gold-frame {
+  position: relative;
+  border: 0 !important;
+  border-radius: 0 !important; /* pixel corners can't be rounded */
+  background-color: #16171a; /* neutral dark-gray panel fill under the trim */
+}
+.gold-frame::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  image-rendering: pixelated;
+  background-image:
+    url('/frame/iron-corner-tl.png'), url('/frame/iron-corner-tr.png'),
+    url('/frame/iron-corner-bl.png'), url('/frame/iron-corner-br.png'),
+    url('/frame/rail-top.png'), url('/frame/rail-bottom.png'),
+    url('/frame/rail-left.png'), url('/frame/rail-right.png');
+  background-repeat: no-repeat, no-repeat, no-repeat, no-repeat, repeat-x, repeat-x, repeat-y,
+    repeat-y;
+  /*
+   * rail-top / rail-left tiles carry their gold band ~17px into a 36/21px tile,
+   * so they're shifted -15px to bring the band flush against the edge and in
+   * line with the corner arms (whose gold sits ~2px in). rail-bottom / rail-right
+   * bands already land ~2–3px from their outer edge, so they stay put.
+   */
+  background-position: top left, top right, bottom left, bottom right, center -15px, bottom center,
+    -15px center, right center;
+  background-size: 25px 30px, 25px 30px, 25px 30px, 25px 30px, 36px 36px, 36px 21px, 21px 36px,
+    21px 36px;
+}
+
+/*
+ * Metal gleam: a white sheen that sweeps left-to-right across the gold trim once on
+ * load, in sync with the title. It reuses the EXACT frame art (corners + rails) as a
+ * MASK, so the moving highlight only lands on the metal — never the card interior.
+ * A real child (z-index 4) so it sits above the ::after frame; pointer-events: none.
+ * The mask geometry mirrors .gold-frame::after 1:1; keep them in step if that changes.
+ */
+.frame-shimmer {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  image-rendering: pixelated;
+  /* the moving highlight (masked to the metal below): soft + subtle, tilted into a
+     shallow diagonal. Per-card animation-delay (set inline, by top-left→bottom-right
+     position) staggers these so the gleam reads as one diagonal wave across the page. */
+  background-image: linear-gradient(
+    115deg,
+    transparent 38%,
+    rgba(255, 255, 255, 0.38) 50%,
+    transparent 62%
+  );
+  background-size: 200% 100%;
+  background-repeat: no-repeat;
+  background-position: 220% 0;
+  -webkit-mask-image: url('/frame/iron-corner-tl.png'), url('/frame/iron-corner-tr.png'),
+    url('/frame/iron-corner-bl.png'), url('/frame/iron-corner-br.png'), url('/frame/rail-top.png'),
+    url('/frame/rail-bottom.png'), url('/frame/rail-left.png'), url('/frame/rail-right.png');
+  mask-image: url('/frame/iron-corner-tl.png'), url('/frame/iron-corner-tr.png'),
+    url('/frame/iron-corner-bl.png'), url('/frame/iron-corner-br.png'), url('/frame/rail-top.png'),
+    url('/frame/rail-bottom.png'), url('/frame/rail-left.png'), url('/frame/rail-right.png');
+  -webkit-mask-repeat: no-repeat, no-repeat, no-repeat, no-repeat, repeat-x, repeat-x, repeat-y,
+    repeat-y;
+  mask-repeat: no-repeat, no-repeat, no-repeat, no-repeat, repeat-x, repeat-x, repeat-y, repeat-y;
+  -webkit-mask-position: top left, top right, bottom left, bottom right, center -15px, bottom center,
+    -15px center, right center;
+  mask-position: top left, top right, bottom left, bottom right, center -15px, bottom center,
+    -15px center, right center;
+  -webkit-mask-size: 25px 30px, 25px 30px, 25px 30px, 25px 30px, 36px 36px, 36px 21px, 21px 36px,
+    21px 36px;
+  mask-size: 25px 30px, 25px 30px, 25px 30px, 25px 30px, 36px 36px, 36px 21px, 21px 36px, 21px 36px;
+  animation: shimmer-sweep 1.6s ease-in-out 0.15s 1 both;
+}
+
+/*
+ * Hover glow — soft red inner + outer. Painted on a dedicated ::before layer and
+ * revealed by transitioning OPACITY only (compositor-composited, no per-frame
+ * repaint), so the pixelated frame overlay and card thumbnail don't re-rasterize
+ * on hover. z-index 2 sits above card content, below the gold frame (::after = 3).
+ */
+.gold-frame::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  box-shadow: inset 0 0 26px rgba(228, 60, 60, 0.55), 0 0 30px 4px rgba(216, 46, 46, 0.65);
+  opacity: 0;
+  /* will-change keeps this shadow layer pre-rasterized so opacity fades smoothly
+     (at opacity:0 the browser would otherwise skip it and snap in on hover). */
+  will-change: opacity;
+  /* Off-hover (fade-out): a touch quicker. */
+  transition: opacity 200ms ease;
+}
+/*
+ * Hover: the glow blooms IN — a longer, ease-out ramp so it swells up gently and
+ * settles, rather than snapping on. Opacity-only, so it stays on the compositor.
+ */
+.destination-card:hover::before,
+.project-card:hover::before {
+  opacity: 1;
+  transition: opacity 420ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Home link: modern hover — a soft pill plus the arrow slides left, no underline. */
+.home-link {
+  padding: 4px 10px;
+  border-radius: 8px;
+  transition: background-color 150ms ease, color 150ms ease;
+}
+.home-link:hover {
+  background-color: rgba(255, 255, 255, 0.07);
+  color: #fff;
+}
+.home-link .home-arrow {
+  display: inline-block;
+  transition: transform 150ms ease;
+}
+.home-link:hover .home-arrow {
+  transform: translateX(-3px);
+}
+
+/*
+ * Project-modal title — a proper standout heading rather than default label text:
+ * larger, heavier, crisp white with a hair of letter-spacing. Pairs with the
+ * gold-trim divider under the modal header.
+ */
+.modal-title {
+  display: inline-block;
+  font-size: 1.55rem;
+  font-weight: 800;
+  letter-spacing: 0.2px;
+  line-height: 1.2;
+  color: #fff;
+}
+
+/* Social buttons: a brand glyph set in the OSRS bank tab, with a drop shadow + lift. */
+.social-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 43px;
+  color: #cfcfcf;
+  background: url('/frame/social-tab.png') center / contain no-repeat;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 4px 5px rgba(0, 0, 0, 0.55));
+  transition: transform 150ms ease, filter 150ms ease, color 150ms ease;
+}
+.social-btn:hover {
+  color: #fff;
+  transform: translateY(-2px);
+  filter: drop-shadow(0 7px 10px rgba(0, 0, 0, 0.6)) brightness(1.12);
+}
+.social-btn svg {
+  display: block;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.7));
+}

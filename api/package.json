@@ -1,0 +1,20 @@
+{
+  "name": "@zoci/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "PORT=8001 tsx watch src/server.ts",
+    "build": "tsc -b",
+    "start": "node dist/server.js"
+  },
+  "dependencies": {
+    "@zoci/shared": "*",
+    "fastify": "^5.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.2",
+    "tsx": "^4.19.2",
+    "typescript": "~6.0.2"
+  }
+}

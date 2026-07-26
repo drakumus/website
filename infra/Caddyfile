@@ -1,0 +1,31 @@
+{
+	# ACME contact email comes from the environment (see infra/.env, gitignored).
+	# Optional — Caddy still issues certs without it.
+	email {$ACME_EMAIL}
+	# ACME uses HTTP-01 and/or TLS-ALPN-01; both :80 and :443 are forwarded to us by
+	# the VPS, so either challenge works through the passthrough.
+}
+
+# Shared HSTS header for all sites.
+(sec) {
+	header Strict-Transport-Security "max-age=31536000; includeSubDomains"
+}
+
+zoci.me {
+	import sec
+	encode zstd gzip
+	handle_path /api/* {
+		reverse_proxy localhost:8000
+	}
+	reverse_proxy localhost:8080
+}
+
+www.zoci.me {
+	import sec
+	redir https://zoci.me{uri} permanent
+}
+
+js1.zoci.me {
+	import sec
+	reverse_proxy localhost:8096
+}

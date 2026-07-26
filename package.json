@@ -1,0 +1,22 @@
+{
+  "name": "zoci-website",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "workspaces": [
+    "shared",
+    "app",
+    "api"
+  ],
+  "scripts": {
+    "dev": "concurrently -n app,api -c blue,green \"npm:dev:app\" \"npm:dev:api\"",
+    "dev:app": "npm run dev --workspace app",
+    "dev:api": "npm run dev --workspace api",
+    "build": "npm run build --workspace app",
+    "test:e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0",
+    "concurrently": "^9.1.0"
+  }
+}
