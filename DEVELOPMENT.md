@@ -118,9 +118,20 @@ The landing page (`docs/index.html`) shows `docs/architecture.svg`, which is als
 > `infra/.env`, `infra/certs/`, and `infra/oauth2-proxy/emails.txt` live there and would be
 > exposed to the LAN. `make preview` is scoped to `docs/` for exactly this reason.
 
-## Verify changes (Playwright)
+## Verify changes
 
-Two complementary tools (see spec §5):
+**Component tests** — per target, one or all:
+
+```sh
+make test               # every component suite
+make test-ha-broker     # one target (also: test-api, test-app, test-e2e)
+```
+
+`ha-broker` has invariant tests (`node:test`, no real HA — `fetch` is stubbed) covering the
+token-isolation boundary; run directly with `npm --prefix ha-broker test`. `api` / `app` have
+no unit tests yet (see the test TODO in `PROJECT_STATUS.md`).
+
+**Playwright** — two complementary tools (see spec §5):
 
 **1. Committed smoke suite** — the scripted gate. Runs on 3 projects: desktop
 (Chromium), Pixel 5 (Chromium), iPhone 13 (WebKit).

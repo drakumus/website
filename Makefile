@@ -1,7 +1,7 @@
 COMPOSE = docker compose -f infra/docker-compose.yml
 PREVIEW_PORT ?= 8888
 
-.PHONY: build deploy down logs ps verify check-secrets check-updates certs certs-staging preview
+.PHONY: build deploy down logs ps verify test check-secrets check-updates certs certs-staging preview
 
 check-secrets:    ## Scan tracked files for leaked IPs / emails / tailnet names
 	bash scripts/check-secrets.sh
@@ -33,6 +33,17 @@ ps:               ## Show status
 
 verify:           ## Run the Playwright smoke suite against the live site
 	BASE_URL=https://zoci.me npm run test:e2e
+
+test:             ## Run every component's tests (extend as coverage lands)
+	$(MAKE) test-ha-broker
+
+test-%:           ## Run one target's tests, e.g. make test-ha-broker | test-e2e | test-api
+	@case '$*' in \
+	  ha-broker) npm --prefix ha-broker test ;; \
+	  e2e)       npm run test:e2e ;; \
+	  api|app)   npm test --workspace $* ;; \
+	  *)         echo "no test target '$*' (try: ha-broker, e2e, api, app)"; exit 2 ;; \
+	esac
 
 preview:          ## Serve docs/ (SVG diagrams, static previews) on the LAN; open from a laptop/phone
 	@echo "Preview: http://$$(hostname -I | awk '{print $$1}'):$(PREVIEW_PORT)/  (Ctrl-C to stop)"
