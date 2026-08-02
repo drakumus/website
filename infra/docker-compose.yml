@@ -20,6 +20,8 @@ services:
       # ACME contact email, from infra/.env (gitignored). Empty is fine.
       - ACME_EMAIL=${ACME_EMAIL:-}
       - HA_ADDR=${HA_ADDR:-}     # ha.zoci.me reverse-proxies here (LAN)
+      # VPS tailnet IP for (tailnet_guard); doc-range default (matches nothing) when unset.
+      - VPS_TS_IP=${VPS_TS_IP:-198.51.100.0/32}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - ./certs:/certs:ro         # acme.sh wildcard, loaded by every vhost (auto_https off)

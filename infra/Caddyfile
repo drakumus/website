@@ -35,12 +35,16 @@
 	request_header -X-Auth-Request-Access-Token
 }
 
-# Fail-closed backstop for private vhosts (§7.1): 404 anything not from the tailnet. The
-# Tailscale ACL (VPS can't reach :443) is the real boundary; this is belt-and-suspenders.
+# Fail-closed backstop for private vhosts (§7.1): 404 anything not from the tailnet, AND the
+# VPS itself. The VPS is a tailnet peer (so it's inside 100.64.0.0/10), and the Tailscale ACL
+# blocking VPS->:443 is the real boundary — but that ACL is invisible here, so this backstop
+# now also 404s the VPS's tailnet IP ({$VPS_TS_IP} from infra/.env) to genuinely cover it.
 # Use inside a `route {}` so it deterministically precedes the vhost's own handler.
 (tailnet_guard) {
 	@offnet not remote_ip 100.64.0.0/10 fd7a:115c:a1e0::/48
+	@vps remote_ip {$VPS_TS_IP}
 	respond @offnet 404
+	respond @vps 404
 }
 
 # ---- HTTP -> HTTPS (port-less; works for public :443->VPS->:8443 and private :443 direct) ----
