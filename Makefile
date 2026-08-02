@@ -1,10 +1,13 @@
 COMPOSE = docker compose -f infra/docker-compose.yml
 PREVIEW_PORT ?= 8888
 
-.PHONY: build deploy down logs ps verify check-secrets certs certs-staging preview
+.PHONY: build deploy down logs ps verify check-secrets check-updates certs certs-staging preview
 
 check-secrets:    ## Scan tracked files for leaked IPs / emails / tailnet names
 	bash scripts/check-secrets.sh
+
+check-updates:    ## Flag digest-pinned images that have fallen behind latest (re-pin + make deploy)
+	bash scripts/check-image-updates.sh
 
 certs-staging:    ## Dry-run the wildcard cert against LE staging (no rate limits)
 	bash infra/acme/issue.sh staging

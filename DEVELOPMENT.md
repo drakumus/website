@@ -156,6 +156,22 @@ the tailnet name, VPS hostname, or emails. Keep them out of tracked files:
   hit (allowlists `127.0.0.1`, `0.0.0.0`, `::1`, `example.com`, and `<placeholders>`).
 - `infra/.env.example` is the tracked template; copy it to `infra/.env` and fill in.
 
+## Keeping images current
+
+The third-party images in `infra/docker-compose.yml` (`caddy`, `coredns`, `oauth2-proxy`) are
+pinned by `tag@sha256:…` — reproducible and supply-chain-safe, but that also freezes the
+version. Since the architecture is public, stale versions telegraph a known-CVE window, so
+check periodically:
+
+```sh
+make check-updates     # flags any pinned image that's behind latest
+```
+
+For anything reported **STALE**, bump its `image:` line to the new `tag@sha256:…` (the command
+prints the digest / newer version) and `make deploy`. `oauth2-proxy` — the sole auth gate — is
+the one to keep current; re-verify the guest 302 flow after bumping it. Base images
+(`node:22-alpine`, `nginx:alpine`) aren't pinned, so they pick up the latest on each rebuild.
+
 ## Git
 
 - **`mainline`** — active branch (fresh start). **`00-webiste-original`** — the legacy
