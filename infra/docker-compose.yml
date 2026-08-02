@@ -1,3 +1,13 @@
+# Bound container logs on every service (json-file, 3 × 10 MB max, ~30 MB ceiling each).
+# Docker's default json-file driver has no rotation, so a chatty service — e.g. the guest
+# dashboard's 10s poll through api + ha-broker + oauth2-proxy — would otherwise grow logs
+# unbounded on the SSD. Referenced as `logging: *default-logging` on each service below.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   caddy:
     container_name: caddy      # stable name so acme.sh's reload (docker exec caddy) works
@@ -5,6 +15,7 @@ services:
     # host networking: binds :80/:443 on the host and reaches web/api/jellyfin via localhost.
     network_mode: host
     restart: unless-stopped
+    logging: *default-logging
     environment:
       # ACME contact email, from infra/.env (gitignored). Empty is fine.
       - ACME_EMAIL=${ACME_EMAIL:-}
@@ -24,6 +35,7 @@ services:
       dockerfile: app/Dockerfile
     image: zoci-web:latest
     restart: unless-stopped
+    logging: *default-logging
     # loopback-only: reachable by Caddy (host) and the box, never the LAN/internet.
     ports:
       - "127.0.0.1:8080:80"
@@ -39,6 +51,7 @@ services:
       dockerfile: api/Dockerfile
     image: zoci-api:latest
     restart: unless-stopped
+    logging: *default-logging
     networks:
       - broker
     ports:
@@ -63,6 +76,7 @@ services:
     image: coredns/coredns:1.11.3      # TODO (§11): pin by digest
     network_mode: host
     restart: unless-stopped
+    logging: *default-logging
     command: ["-conf", "/etc/coredns/Corefile"]
     environment:
       - HOME_TS_IP=${HOME_TS_IP}
@@ -79,6 +93,7 @@ services:
       dockerfile: Dockerfile
     image: zoci-ha-broker:latest
     restart: unless-stopped
+    logging: *default-logging
     networks:
       - broker
     environment:
@@ -102,6 +117,7 @@ services:
     # image → no in-container healthcheck; verify via the host /ping.
     image: quay.io/oauth2-proxy/oauth2-proxy:v7.7.1     # TODO (§11): pin by digest
     restart: unless-stopped
+    logging: *default-logging
     ports:
       - "127.0.0.1:4180:4180"
     environment:
