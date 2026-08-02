@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "PORT=8001 tsx watch src/server.ts",
     "build": "tsc -b",
-    "start": "node dist/server.js"
+    "start": "node dist/server.js",
+    "test": "node --import tsx --test \"test/**/*.test.ts\""
   },
   "dependencies": {
     "@zoci/shared": "*",
