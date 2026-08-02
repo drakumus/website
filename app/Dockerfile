@@ -1,6 +1,6 @@
 # Web image: build the Vite SPA, serve it as static files with nginx (SPA fallback).
 # Build context is the REPO ROOT (monorepo: app imports @zoci/shared).
-FROM node:22-alpine AS build
+FROM node:24-alpine AS build
 WORKDIR /repo
 # workspace manifests first (layer caching)
 COPY package.json package-lock.json ./

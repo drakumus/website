@@ -6,11 +6,11 @@ CI/CD. See `ARCHITECTURE.md` for the system map; design history lives in
 
 ## Prerequisites (one-time)
 
-**Node** — via `nvm`, pinned to Node 22 (`.nvmrc`). If `node` isn't found in a shell,
+**Node** — via `nvm`, pinned to Node 24 (`.nvmrc`). If `node` isn't found in a shell,
 nvm didn't load — open a new terminal or run `nvm use`:
 
 ```sh
-nvm install   # reads .nvmrc (Node 22)
+nvm install   # reads .nvmrc (Node 24)
 nvm use
 ```
 
@@ -26,7 +26,7 @@ The system libs need root (`apt`); run once:
 ```sh
 npx playwright install chromium webkit
 # system libraries (needs sudo; node referenced by absolute path so nvm PATH isn't needed):
-sudo /home/rohan/.nvm/versions/node/v22.23.1/bin/node \
+sudo /home/rohan/.nvm/versions/node/v24.18.1/bin/node \
   node_modules/@playwright/test/cli.js install-deps chromium webkit
 ```
 
@@ -181,7 +181,7 @@ make check-updates     # flags any pinned image that's behind latest
 For anything reported **STALE**, bump its `image:` line to the new `tag@sha256:…` (the command
 prints the digest / newer version) and `make deploy`. `oauth2-proxy` — the sole auth gate — is
 the one to keep current; re-verify the guest 302 flow after bumping it. Base images
-(`node:22-alpine`, `nginx:alpine`) aren't pinned, so they pick up the latest on each rebuild.
+(`node:24-alpine`, `nginx:alpine`) aren't pinned, so they pick up the latest on each rebuild.
 
 ## Git
 

@@ -17,7 +17,7 @@
 
 - **Third-party images are pinned by `tag@sha256:…`** (`caddy`, `coredns`, `oauth2-proxy`) for
   reproducibility. `make check-updates` flags stale ones; re-pin + `make deploy`. Base images
-  (`node:22-alpine`, `nginx:alpine`) float to latest on rebuild.
+  (`node:24-alpine`, `nginx:alpine`) float to latest on rebuild.
 
 - **All container logs are bounded** via the `x-logging` anchor. Apply it to any new service.
 
