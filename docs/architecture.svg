@@ -1,0 +1,127 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 860" font-family="'Open Sans','Segoe UI',system-ui,sans-serif">
+  <defs>
+    <marker id="agr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#c9c9c9"/></marker>
+    <marker id="ags" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#d1a24a"/></marker>
+    <marker id="aad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#b39ddb"/></marker>
+    <symbol id="person" viewBox="0 0 50 76"><circle cx="25" cy="15" r="14"/><path d="M1 74 C1 48 13 39 25 39 C37 39 49 48 49 74 Z"/></symbol>
+    <style>
+      .bg{fill:#131417} .node{fill:#16171a;stroke:rgba(196,160,84,0.55);stroke-width:1.5;rx:8}
+      .zone{fill:none;stroke:rgba(196,160,84,0.45);stroke-width:1.5;stroke-dasharray:5 4;rx:12}
+      .home{fill:none;stroke:rgba(255,255,255,0.15);stroke-width:1.5;stroke-dasharray:5 4;rx:12}
+      .tnet{fill:rgba(65,179,179,0.05);stroke:#41b3b3;stroke-width:1.6;stroke-dasharray:7 4;rx:14}
+      .t{fill:#ececec;font-size:15px;font-weight:700} .s{fill:#9a9a9a;font-size:11.5px}
+      .zt{fill:#c4a054;font-size:12px;font-weight:700;letter-spacing:.04em} .tnt{fill:#41b3b3;font-size:12.5px;font-weight:700}
+      .h1{fill:#ececec;font-size:22px;font-weight:700} .h2{fill:#9a9a9a;font-size:12.5px} .tag{fill:#c4a054;font-size:10.5px;font-weight:700}
+      .core{stroke-width:2;fill:none} .lbl{fill:#c9c9c9;font-size:10.5px} .plab{font-size:9.5px;font-weight:700} .leg{fill:#b8b8b8;font-size:11px}
+      .https{stroke:#5bbf82;stroke-width:1.5;fill:none} .wg{stroke:#41b3b3;stroke-width:1.5;fill:none} .http{stroke:#7f8b97;stroke-width:1.5;fill:none}
+      .pub{fill:#c9c9c9} .gst{fill:#d1a24a} .adm{fill:#b39ddb}
+    </style>
+  </defs>
+  <rect class="bg" x="0" y="0" width="940" height="860"/>
+  <text class="h1" x="34" y="40">zoci.me — architecture</text>
+  <text class="h2" x="34" y="61">public site · Google-gated guest controls · tailnet-only admin — pointer map, details in ARCHITECTURE.md</text>
+
+  <!-- Public + guest visitors (OUTSIDE the tailnet) -->
+  <rect class="node" x="64" y="78" width="238" height="50"/>
+  <use href="#person" class="pub" x="76" y="84" width="24" height="38"/>
+  <use href="#person" class="gst" x="102" y="84" width="24" height="38"/>
+  <text class="t" x="216" y="99" text-anchor="middle" font-size="13.5">Public &amp; guest</text>
+  <text class="s" x="216" y="115" text-anchor="middle">over the internet</text>
+
+  <rect class="tnet" x="54" y="152" width="832" height="506"/>
+  <text class="tnt" x="72" y="173">Tailscale tailnet · WireGuard mesh (encrypted, peer-to-peer)</text>
+
+  <rect class="node" x="78" y="192" width="286" height="56"/>
+  <text class="t" x="221" y="213" text-anchor="middle">OVH VPS · nginx stream (L4)</text>
+  <text class="s" x="221" y="230" text-anchor="middle">raw TCP passthrough, no TLS · ACL-limited to :8443</text>
+
+  <rect class="node" x="576" y="192" width="286" height="56"/>
+  <use href="#person" class="adm" x="588" y="198" width="24" height="40"/>
+  <text class="t" x="744" y="213" text-anchor="middle" font-size="14">Admin device · Tailscale</text>
+  <text class="s" x="744" y="230" text-anchor="middle">reaches the private surface directly · no VPS</text>
+
+  <rect class="home" x="78" y="284" width="784" height="358"/>
+  <text class="zt" x="94" y="304" style="fill:#bdbdbd">home server — Docker · a tailnet peer</text>
+
+  <rect class="node" x="102" y="316" width="736" height="50"/>
+  <text class="t" x="470" y="337" text-anchor="middle">Caddy — terminates TLS (acme.sh wildcard cert)</text>
+  <text class="s" x="470" y="354" text-anchor="middle">routes by vhost + PORT-SPLIT · strips client X-Auth-Request-* · tailnet_guard backstop</text>
+
+  <!-- ingress: HTTPS then HTTPS-in-WireGuard down the left spine -->
+  <line class="https" x1="194" y1="130" x2="194" y2="188"/><line class="https" x1="206" y1="130" x2="206" y2="188"/>
+  <path class="core" style="stroke:#c9c9c9" d="M200 130 L200 190" marker-end="url(#agr)"/>
+  <text class="plab" x="214" y="162" fill="#5bbf82">HTTPS · :443/:80</text>
+  <line class="wg" x1="189" y1="250" x2="189" y2="314"/><line class="wg" x1="211" y1="250" x2="211" y2="314"/>
+  <line class="https" x1="194" y1="250" x2="194" y2="314"/><line class="https" x1="206" y1="250" x2="206" y2="314"/>
+  <path class="core" style="stroke:#c9c9c9" d="M200 250 L200 316" marker-end="url(#agr)"/>
+  <text class="plab" x="214" y="286" fill="#41b3b3">HTTPS in WireGuard</text>
+
+  <!-- admin ingress: HTTPS-in-WireGuard to :443 -->
+  <line class="wg" x1="749" y1="250" x2="749" y2="314"/><line class="wg" x1="771" y1="250" x2="771" y2="314"/>
+  <line class="https" x1="754" y1="250" x2="754" y2="314"/><line class="https" x1="766" y1="250" x2="766" y2="314"/>
+  <path class="core" style="stroke:#b39ddb" d="M760 250 L760 316" marker-end="url(#aad)"/>
+  <text class="plab" x="576" y="286" fill="#41b3b3">HTTPS in WireGuard · :443</text>
+
+  <!-- PUBLIC branch -->
+  <text class="tag" x="112" y="398">PUBLIC · :8443</text>
+  <rect class="node" x="102" y="404" width="192" height="60"/>
+  <text class="t" x="198" y="431" text-anchor="middle">web — SPA (nginx)</text>
+  <text class="s" x="198" y="449" text-anchor="middle">zoci.me · js1.zoci.me</text>
+  <line class="http" x1="192" y1="368" x2="192" y2="402"/><line class="http" x1="204" y1="368" x2="204" y2="402"/>
+  <path class="core" style="stroke:#c9c9c9" d="M198 368 L198 404" marker-end="url(#agr)"/>
+
+  <!-- GUEST chain (gold) -->
+  <text class="tag" x="384" y="398">GUEST · :8443</text>
+  <rect class="node" x="376" y="404" width="190" height="44"/>
+  <text class="t" x="471" y="423" text-anchor="middle">oauth2-proxy</text>
+  <text class="s" x="471" y="439" text-anchor="middle">Google OIDC gate · allowlist</text>
+  <rect class="node" x="376" y="468" width="190" height="44"/>
+  <text class="t" x="471" y="487" text-anchor="middle">api — /guest/*</text>
+  <text class="s" x="471" y="503" text-anchor="middle">no secrets · needs trusted header</text>
+  <rect class="node" x="376" y="532" width="190" height="48"/>
+  <text class="t" x="471" y="551" text-anchor="middle">ha-broker</text>
+  <text class="s" x="471" y="567" text-anchor="middle">holds HA token · whitelist only</text>
+
+  <line class="http" x1="440" y1="368" x2="440" y2="402"/><line class="http" x1="452" y1="368" x2="452" y2="402"/>
+  <path class="core" style="stroke:#d1a24a" d="M446 368 L446 404" marker-end="url(#ags)"/>
+  <text class="plab" x="486" y="390" fill="#7f8b97">HTTP · forward-auth</text>
+  <line class="http" x1="440" y1="448" x2="440" y2="466"/><line class="http" x1="452" y1="448" x2="452" y2="466"/>
+  <path class="core" style="stroke:#d1a24a" d="M446 448 L446 468" marker-end="url(#ags)"/>
+  <line class="http" x1="440" y1="512" x2="440" y2="530"/><line class="http" x1="452" y1="512" x2="452" y2="530"/>
+  <path class="core" style="stroke:#d1a24a" d="M446 512 L446 532" marker-end="url(#ags)"/>
+  <text class="plab" x="458" y="526" fill="#7f8b97">HTTP · opaque {key,value}</text>
+
+  <!-- PRIVATE branch (violet) -->
+  <rect class="zone" x="634" y="392" width="204" height="152"/>
+  <text class="zt" x="644" y="410">PRIVATE · :443 · tailnet-only</text>
+  <rect class="node" x="648" y="420" width="176" height="34"/>
+  <text class="t" x="736" y="442" text-anchor="middle" font-size="13">admin.zoci.me</text>
+  <rect class="node" x="648" y="462" width="176" height="34"/>
+  <text class="t" x="736" y="484" text-anchor="middle" font-size="13">ha.zoci.me</text>
+  <text class="s" x="736" y="516" text-anchor="middle">finance.zoci.me</text>
+  <text class="s" x="736" y="532" text-anchor="middle">names via CoreDNS split-DNS</text>
+  <line class="http" x1="730" y1="368" x2="730" y2="390"/><line class="http" x1="742" y1="368" x2="742" y2="390"/>
+  <path class="core" style="stroke:#b39ddb" d="M736 368 L736 392" marker-end="url(#aad)"/>
+
+  <!-- HA on the LAN -->
+  <rect class="node" x="376" y="690" width="190" height="50"/>
+  <text class="t" x="471" y="710" text-anchor="middle">Home Assistant</text>
+  <text class="s" x="471" y="726" text-anchor="middle">on the LAN — not on the tailnet</text>
+  <line class="http" x1="440" y1="580" x2="440" y2="688"/><line class="http" x1="452" y1="580" x2="452" y2="688"/>
+  <path class="core" style="stroke:#d1a24a" d="M446 580 L446 688" marker-end="url(#ags)"/>
+  <text class="plab" x="458" y="640" fill="#7f8b97">HTTP · LAN · HA token</text>
+  <path class="core" style="stroke:#b39ddb;stroke-dasharray:5 4" d="M736 544 C736 660 600 686 572 697" marker-end="url(#aad)"/>
+  <text class="lbl" x="598" y="662">ha.zoci.me → HA</text>
+
+  <!-- legend: protocols -->
+  <line class="https" x1="40" y1="792" x2="72" y2="792"/><text class="leg" x="80" y="796">HTTPS (TLS)</text>
+  <line class="wg" x1="176" y1="792" x2="208" y2="792"/><text class="leg" x="216" y="796">WireGuard</text>
+  <line class="http" x1="306" y1="792" x2="338" y2="792"/><text class="leg" x="346" y="796">HTTP (plaintext)</text>
+  <text class="leg" x="470" y="796" style="fill:#8a8a8a">core line = the request · sheath = its transport wrapper</text>
+  <!-- legend: actors + boundary -->
+  <use href="#person" class="pub" x="42" y="815" width="13" height="19"/><text class="leg" x="59" y="828">public</text>
+  <use href="#person" class="gst" x="114" y="815" width="13" height="19"/><text class="leg" x="131" y="828">guest</text>
+  <use href="#person" class="adm" x="182" y="815" width="13" height="19"/><text class="leg" x="199" y="828">admin</text>
+  <rect class="zone" x="262" y="816" width="30" height="16"/><text class="leg" x="300" y="828">trust boundary</text>
+  <text class="leg" x="40" y="850" style="fill:#8a8a8a">Public &amp; guest enter via the VPS (:8443); admin reaches :443 directly over WireGuard — the VPS is ACL-blocked from :443.</text>
+</svg>

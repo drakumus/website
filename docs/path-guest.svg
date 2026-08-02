@@ -1,0 +1,95 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 620" font-family="'Open Sans','Segoe UI',system-ui,sans-serif">
+  <defs>
+    <marker id="ag" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#d1a24a"/></marker>
+    <symbol id="person" viewBox="0 0 50 76"><circle cx="25" cy="15" r="14"/><path d="M1 74 C1 48 13 39 25 39 C37 39 49 48 49 74 Z"/></symbol>
+    <style>
+      .bg{fill:#131417} .node{fill:#16171a;stroke:rgba(196,160,84,0.55);stroke-width:1.5;rx:8}
+      .home{fill:none;stroke:rgba(255,255,255,0.15);stroke-width:1.5;stroke-dasharray:5 4;rx:12}
+      .tnet{fill:rgba(65,179,179,0.05);stroke:#41b3b3;stroke-width:1.6;stroke-dasharray:7 4;rx:14}
+      .t{fill:#ececec;font-size:15px;font-weight:700} .s{fill:#9a9a9a;font-size:11.5px}
+      .h1{fill:#ececec;font-size:19px;font-weight:700} .lbl{fill:#c9c9c9;font-size:10.5px}
+      .tnt{fill:#41b3b3;font-size:12px;font-weight:700}
+      .core{stroke-width:2;fill:none} .person{fill:#c4a054} .plabel{fill:#ececec;font-size:12.5px;font-weight:700}
+      .https{stroke:#5bbf82;stroke-width:1.5;fill:none} .wg{stroke:#41b3b3;stroke-width:1.5;fill:none} .http{stroke:#7f8b97;stroke-width:1.5;fill:none}
+      .plab{font-size:9.5px;font-weight:700} .leg{fill:#b8b8b8;font-size:11px}
+      .note{fill:#bdbdbd;font-size:11.5px} .noteh{fill:#c4a054;font-size:11.5px;font-weight:700}
+    </style>
+  </defs>
+  <rect class="bg" x="0" y="0" width="960" height="620"/>
+  <text class="h1" x="28" y="36">Guest — an allowlisted Google account (curated Home Assistant control)</text>
+
+  <use href="#person" class="person" x="42" y="96" width="52" height="80"/>
+  <text class="plabel" x="68" y="196" text-anchor="middle">Guest</text>
+  <text class="s" x="68" y="212" text-anchor="middle">Google account</text>
+
+  <!-- Guest -> VPS : HTTPS -->
+  <line class="https" x1="104" y1="144" x2="244" y2="144"/><line class="https" x1="104" y1="156" x2="244" y2="156"/>
+  <path class="core" style="stroke:#d1a24a" d="M104 150 L246 150" marker-end="url(#ag)"/>
+  <text class="plab" x="150" y="136" fill="#5bbf82">HTTPS</text>
+
+  <rect class="tnet" x="230" y="96" width="432" height="440"/>
+  <text class="tnt" x="246" y="116">Tailscale tailnet · WireGuard</text>
+
+  <rect class="node" x="250" y="124" width="182" height="56"/>
+  <text class="t" x="341" y="148" text-anchor="middle">OVH VPS</text>
+  <text class="s" x="341" y="166" text-anchor="middle">L4 passthrough · no TLS</text>
+
+  <!-- VPS -> Caddy : HTTPS inside WireGuard (vertical) -->
+  <line class="wg" x1="330" y1="182" x2="330" y2="226"/><line class="wg" x1="352" y1="182" x2="352" y2="226"/>
+  <line class="https" x1="335" y1="182" x2="335" y2="226"/><line class="https" x1="347" y1="182" x2="347" y2="226"/>
+  <path class="core" style="stroke:#d1a24a" d="M341 182 L341 228" marker-end="url(#ag)"/>
+  <text class="plab" x="360" y="208" fill="#41b3b3">HTTPS in WireGuard</text>
+
+  <rect class="home" x="246" y="200" width="400" height="332"/>
+  <text class="s" x="262" y="220" style="fill:#bdbdbd;font-weight:700">home server</text>
+  <rect class="node" x="262" y="230" width="368" height="46"/>
+  <text class="t" x="446" y="251" text-anchor="middle">Caddy · routes + PORT-SPLIT</text>
+  <text class="s" x="446" y="267" text-anchor="middle">strips client X-Auth-Request-* · :8443</text>
+
+  <rect class="node" x="356" y="306" width="180" height="48"/>
+  <text class="t" x="446" y="327" text-anchor="middle">oauth2-proxy</text>
+  <text class="s" x="446" y="344" text-anchor="middle">Google OIDC gate · allowlist</text>
+  <rect class="node" x="356" y="376" width="180" height="48"/>
+  <text class="t" x="446" y="397" text-anchor="middle">api — /guest/*</text>
+  <text class="s" x="446" y="414" text-anchor="middle">no secrets · needs header</text>
+  <rect class="node" x="356" y="446" width="180" height="48"/>
+  <text class="t" x="446" y="467" text-anchor="middle">ha-broker</text>
+  <text class="s" x="446" y="484" text-anchor="middle">HA token · whitelist only</text>
+
+  <!-- internal HTTP hops (vertical, slate sheath) -->
+  <line class="http" x1="440" y1="276" x2="440" y2="304"/><line class="http" x1="452" y1="276" x2="452" y2="304"/>
+  <path class="core" style="stroke:#d1a24a" d="M446 276 L446 306" marker-end="url(#ag)"/>
+  <text class="plab" x="462" y="294" fill="#7f8b97">HTTP · forward-auth</text>
+  <line class="http" x1="440" y1="354" x2="440" y2="374"/><line class="http" x1="452" y1="354" x2="452" y2="374"/>
+  <path class="core" style="stroke:#d1a24a" d="M446 354 L446 376" marker-end="url(#ag)"/>
+  <line class="http" x1="440" y1="424" x2="440" y2="444"/><line class="http" x1="452" y1="424" x2="452" y2="444"/>
+  <path class="core" style="stroke:#d1a24a" d="M446 424 L446 446" marker-end="url(#ag)"/>
+  <text class="plab" x="462" y="440" fill="#7f8b97">HTTP · opaque {key,value}</text>
+
+  <!-- HA on LAN : HTTP -->
+  <rect class="node" x="356" y="540" width="180" height="46"/>
+  <text class="t" x="446" y="561" text-anchor="middle">Home Assistant</text>
+  <text class="s" x="446" y="577" text-anchor="middle">on the LAN — off the tailnet</text>
+  <line class="http" x1="440" y1="494" x2="440" y2="538"/><line class="http" x1="452" y1="494" x2="452" y2="538"/>
+  <path class="core" style="stroke:#d1a24a" d="M446 494 L446 538" marker-end="url(#ag)"/>
+  <text class="plab" x="462" y="520" fill="#7f8b97">HTTP · LAN · HA token</text>
+
+  <!-- notes -->
+  <text class="noteh" x="690" y="150">The gate + the isolation</text>
+  <text class="note" x="690" y="176">1 · Must be on the allowlist (emails.txt).</text>
+  <text class="note" x="690" y="194">Not on it → bounced to Google, no access.</text>
+  <text class="note" x="690" y="224">2 · api holds NO secrets; it only trusts the</text>
+  <text class="note" x="690" y="242">header Caddy sets after a verified login.</text>
+  <text class="note" x="690" y="272">3 · ha-broker (sole HA-token holder) maps an</text>
+  <text class="note" x="690" y="290">opaque key → entity, issues turn_on/off,</text>
+  <text class="note" x="690" y="308">then verifies HA actually converged.</text>
+  <text class="note" x="690" y="338">4 · A compromised api or nosy guest can do</text>
+  <text class="note" x="690" y="356">no more than toggle the whitelisted lights.</text>
+
+  <!-- protocol legend -->
+  <line class="https" x1="690" y1="440" x2="722" y2="440"/><text class="leg" x="730" y="444">HTTPS (TLS)</text>
+  <line class="wg" x1="690" y1="462" x2="722" y2="462"/><text class="leg" x="730" y="466">WireGuard</text>
+  <line class="http" x1="690" y1="484" x2="722" y2="484"/><text class="leg" x="730" y="488">HTTP (plaintext)</text>
+  <text class="leg" x="690" y="512" style="fill:#8a8a8a">core line = the request;</text>
+  <text class="leg" x="690" y="528" style="fill:#8a8a8a">sheath = its transport wrapper.</text>
+</svg>

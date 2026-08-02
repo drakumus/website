@@ -4,6 +4,8 @@ High-level map of how zoci.me fits together. This is a **pointer document**: it 
 shape and the *why*, and points at the code that holds the detail — it does not restate logic
 that lives in the files. Start here, then read the referenced source.
 
+![zoci.me architecture](docs/architecture.svg)
+
 Companion docs:
 - [`README.md`](README.md) — what the site is, the stack, the layout.
 - [`DEVELOPMENT.md`](DEVELOPMENT.md) — local dev loop, the guest-dashboard dev bypass, build,
@@ -35,6 +37,20 @@ The whole design turns on a **port split**: public vhosts listen on `:8443`, pri
 `:443`. The public VPS can only reach `:8443`; it is structurally blocked from `:443`, so the
 private surface is unreachable from the internet even if a vhost were misconfigured. This is
 enforced by the Tailscale grant, not a fragile denylist. Rationale in `~/specs/complete/secure-access.md` §7.
+
+Each actor's path and the boundaries it crosses:
+
+**Public** — anyone, no login:
+
+![public visitor path](docs/path-public.svg)
+
+**Guest** — an allowlisted Google account (curated Home Assistant control):
+
+![guest path](docs/path-guest.svg)
+
+**Admin (you)** — only from your own tailnet devices:
+
+![admin path](docs/path-admin.svg)
 
 ---
 

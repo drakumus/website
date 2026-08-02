@@ -1,0 +1,30 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>zoci.me — diagrams</title>
+<style>
+  body { margin: 0; background: #0e0f12; color: #ececec;
+    font-family: "Open Sans", -apple-system, "Segoe UI", system-ui, sans-serif; }
+  main { max-width: 1000px; margin: 0 auto; padding: 1.4rem 1rem 3rem; }
+  h1 { font-size: 1.05rem; color: #c4a054; font-weight: 700; margin: .2rem 0; }
+  h2 { font-size: .95rem; color: #ececec; font-weight: 700; margin: 1.8rem 0 .4rem; }
+  p { color: #9a9a9a; font-size: .84rem; margin: .2rem 0 1rem; }
+  code { color: #c4a054; }
+  img { width: 100%; height: auto; display: block;
+    border: 1px solid rgba(196,160,84,0.25); border-radius: 10px; background: #131417; }
+</style>
+<main>
+  <h1>zoci.me — diagrams</h1>
+  <p>Local preview (<code>make preview</code>). Sources in <code>docs/*.svg</code>; embedded in <code>ARCHITECTURE.md</code> (GitHub renders them).</p>
+
+  <h2>System overview</h2>
+  <img src="architecture.svg" alt="zoci.me architecture overview">
+
+  <h2>Path — Public visitor</h2>
+  <img src="path-public.svg" alt="public visitor path">
+
+  <h2>Path — Guest (allowlisted Google account)</h2>
+  <img src="path-guest.svg" alt="guest path">
+
+  <h2>Path — Admin (you, on Tailscale)</h2>
+  <img src="path-admin.svg" alt="admin path">
+</main>

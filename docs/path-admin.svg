@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 360" font-family="'Open Sans','Segoe UI',system-ui,sans-serif">
+  <defs>
+    <marker id="aa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#b39ddb"/></marker>
+    <symbol id="person" viewBox="0 0 50 76"><circle cx="25" cy="15" r="14"/><path d="M1 74 C1 48 13 39 25 39 C37 39 49 48 49 74 Z"/></symbol>
+    <style>
+      .bg{fill:#131417} .node{fill:#16171a;stroke:rgba(196,160,84,0.55);stroke-width:1.5;rx:8}
+      .home{fill:none;stroke:rgba(255,255,255,0.15);stroke-width:1.5;stroke-dasharray:5 4;rx:12}
+      .tnet{fill:rgba(65,179,179,0.05);stroke:#41b3b3;stroke-width:1.6;stroke-dasharray:7 4;rx:14}
+      .zone{fill:none;stroke:rgba(196,160,84,0.45);stroke-width:1.5;stroke-dasharray:5 4;rx:12}
+      .t{fill:#ececec;font-size:15px;font-weight:700} .s{fill:#9a9a9a;font-size:11.5px}
+      .h1{fill:#ececec;font-size:19px;font-weight:700} .tnt{fill:#41b3b3;font-size:12px;font-weight:700}
+      .zt{fill:#c4a054;font-size:12px;font-weight:700;letter-spacing:.04em}
+      .core{stroke-width:2;fill:none} .person{fill:#b39ddb} .plabel{fill:#ececec;font-size:12.5px;font-weight:700}
+      .https{stroke:#5bbf82;stroke-width:1.5;fill:none} .wg{stroke:#41b3b3;stroke-width:1.5;fill:none} .http{stroke:#7f8b97;stroke-width:1.5;fill:none}
+      .plab{font-size:9.5px;font-weight:700} .leg{fill:#b8b8b8;font-size:11px}
+    </style>
+  </defs>
+  <rect class="bg" x="0" y="0" width="960" height="360"/>
+  <text class="h1" x="28" y="36">Admin — only from tailnet devices</text>
+
+  <rect class="tnet" x="28" y="62" width="904" height="214"/>
+  <text class="tnt" x="44" y="82">Tailscale tailnet · WireGuard mesh — no VPS, no public internet</text>
+
+  <use href="#person" class="person" x="50" y="104" width="52" height="80"/>
+  <text class="plabel" x="76" y="206" text-anchor="middle">Admin device</text>
+  <text class="s" x="76" y="222" text-anchor="middle">Tailscale peer</text>
+
+  <!-- admin device -> Caddy : HTTPS inside WireGuard -->
+  <line class="wg" x1="114" y1="141" x2="302" y2="141"/><line class="wg" x1="114" y1="163" x2="302" y2="163"/>
+  <line class="https" x1="114" y1="146" x2="302" y2="146"/><line class="https" x1="114" y1="158" x2="302" y2="158"/>
+  <path class="core" style="stroke:#b39ddb" d="M114 152 L304 152" marker-end="url(#aa)"/>
+  <text class="plab" x="150" y="133" fill="#41b3b3">HTTPS in WireGuard · :443</text>
+
+  <rect class="home" x="288" y="96" width="628" height="176"/>
+  <text class="s" x="304" y="116" style="fill:#bdbdbd;font-weight:700">home server</text>
+  <rect class="node" x="304" y="124" width="196" height="54"/>
+  <text class="t" x="402" y="147" text-anchor="middle">Caddy · :443</text>
+  <text class="s" x="402" y="165" text-anchor="middle">tailnet_guard backstop</text>
+
+  <!-- Caddy -> private : HTTP (internal) -->
+  <line class="http" x1="502" y1="146" x2="536" y2="146"/><line class="http" x1="502" y1="158" x2="536" y2="158"/>
+  <path class="core" style="stroke:#b39ddb" d="M502 152 L538 152" marker-end="url(#aa)"/>
+
+  <rect class="zone" x="538" y="104" width="366" height="150"/>
+  <text class="zt" x="550" y="124">PRIVATE · :443 · tailnet-only</text>
+  <rect class="node" x="554" y="134" width="336" height="32"/>
+  <text class="t" x="722" y="156" text-anchor="middle" font-size="13.5">admin.zoci.me</text>
+  <rect class="node" x="554" y="172" width="336" height="32"/>
+  <text class="t" x="722" y="194" text-anchor="middle" font-size="13.5">ha.zoci.me → Home Assistant (LAN)</text>
+  <rect class="node" x="554" y="210" width="336" height="32"/>
+  <text class="t" x="722" y="232" text-anchor="middle" font-size="13.5">finance.zoci.me</text>
+
+  <!-- protocol legend -->
+  <line class="https" x1="40" y1="300" x2="72" y2="300"/><text class="leg" x="80" y="304">HTTPS (TLS)</text>
+  <line class="wg" x1="176" y1="300" x2="208" y2="300"/><text class="leg" x="216" y="304">WireGuard</text>
+  <line class="http" x1="306" y1="300" x2="338" y2="300"/><text class="leg" x="346" y="304">HTTP (plaintext)</text>
+  <text class="leg" x="470" y="304" style="fill:#8a8a8a">core line = the request · sheath = its transport wrapper</text>
+
+  <text class="s" x="40" y="330">No VPS and no public internet — the VPS is ACL-blocked from :443, so the private surface is never reachable from the internet.</text>
+  <text class="s" x="40" y="348">Only tailnet devices reach it, over WireGuard. Private names resolve via CoreDNS split-DNS; ha.zoci.me reverse-proxies to Home Assistant on the LAN.</text>
+</svg>

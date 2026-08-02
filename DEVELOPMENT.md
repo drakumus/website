@@ -99,6 +99,25 @@ npm run build                    # builds the app (tsc + vite build -> app/dist)
 npm run build --workspace api    # compiles the api (-> api/dist)
 ```
 
+## Preview static files (diagrams)
+
+This box is headless with no terminal image support, so preview static artifacts (the SVG
+diagrams in `docs/`, standalone HTML, etc.) in a **browser over the LAN** — the same way you
+preview the dev app:
+
+```sh
+make preview                     # serves ./docs on :8888, bound to all interfaces
+# then open from a laptop/phone:  http://<your-box-lan-ip>:8888/   (hostname -I for the IP)
+# override the port:  make preview PREVIEW_PORT=9000
+```
+
+The landing page (`docs/index.html`) shows `docs/architecture.svg`, which is also embedded in
+`ARCHITECTURE.md` and rendered by GitHub. Edit the SVG, refresh the browser.
+
+> **Only ever serve `docs/`.** Don't point a static server at the repo root — the gitignored
+> `infra/.env`, `infra/certs/`, and `infra/oauth2-proxy/emails.txt` live there and would be
+> exposed to the LAN. `make preview` is scoped to `docs/` for exactly this reason.
+
 ## Verify changes (Playwright)
 
 Two complementary tools (see spec §5):

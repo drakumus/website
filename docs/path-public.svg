@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 330" font-family="'Open Sans','Segoe UI',system-ui,sans-serif">
+  <defs>
+    <marker id="ap" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#c9c9c9"/></marker>
+    <symbol id="person" viewBox="0 0 50 76"><circle cx="25" cy="15" r="14"/><path d="M1 74 C1 48 13 39 25 39 C37 39 49 48 49 74 Z"/></symbol>
+    <style>
+      .bg{fill:#131417} .node{fill:#16171a;stroke:rgba(196,160,84,0.55);stroke-width:1.5;rx:8}
+      .home{fill:none;stroke:rgba(255,255,255,0.15);stroke-width:1.5;stroke-dasharray:5 4;rx:12}
+      .tnet{fill:rgba(65,179,179,0.05);stroke:#41b3b3;stroke-width:1.6;stroke-dasharray:7 4;rx:14}
+      .t{fill:#ececec;font-size:15px;font-weight:700} .s{fill:#9a9a9a;font-size:11.5px}
+      .h1{fill:#ececec;font-size:19px;font-weight:700} .lbl{fill:#c9c9c9;font-size:10.5px}
+      .tnt{fill:#41b3b3;font-size:12px;font-weight:700}
+      .core{stroke-width:2;fill:none} .person{fill:#c9c9c9} .plabel{fill:#ececec;font-size:12.5px;font-weight:700}
+      .https{stroke:#5bbf82;stroke-width:1.5;fill:none} .wg{stroke:#41b3b3;stroke-width:1.5;fill:none} .http{stroke:#7f8b97;stroke-width:1.5;fill:none}
+      .plab{font-size:9.5px;font-weight:700} .leg{fill:#b8b8b8;font-size:11px}
+    </style>
+  </defs>
+  <rect class="bg" x="0" y="0" width="960" height="330"/>
+  <text class="h1" x="28" y="36">Public visitor — anyone on the internet, no login</text>
+
+  <use href="#person" class="person" x="40" y="112" width="52" height="80"/>
+  <text class="plabel" x="66" y="212" text-anchor="middle">Anyone</text>
+  <text class="s" x="66" y="228" text-anchor="middle">no login</text>
+
+  <!-- Anyone -> VPS : HTTPS -->
+  <line class="https" x1="102" y1="154" x2="244" y2="154"/><line class="https" x1="102" y1="166" x2="244" y2="166"/>
+  <path class="core" style="stroke:#c9c9c9" d="M102 160 L246 160" marker-end="url(#ap)"/>
+  <text class="plab" x="150" y="146" fill="#5bbf82">HTTPS</text>
+
+  <rect class="tnet" x="230" y="92" width="700" height="150"/>
+  <text class="tnt" x="246" y="112">Tailscale tailnet · WireGuard</text>
+
+  <rect class="node" x="248" y="132" width="170" height="56"/>
+  <text class="t" x="333" y="156" text-anchor="middle">OVH VPS</text>
+  <text class="s" x="333" y="174" text-anchor="middle">L4 passthrough · no TLS</text>
+
+  <!-- VPS -> Caddy : HTTPS inside WireGuard -->
+  <line class="wg" x1="420" y1="149" x2="484" y2="149"/><line class="wg" x1="420" y1="171" x2="484" y2="171"/>
+  <line class="https" x1="420" y1="154" x2="484" y2="154"/><line class="https" x1="420" y1="166" x2="484" y2="166"/>
+  <path class="core" style="stroke:#c9c9c9" d="M420 160 L486 160" marker-end="url(#ap)"/>
+  <text class="plab" x="392" y="192" fill="#41b3b3">HTTPS in WireGuard</text>
+
+  <rect class="home" x="470" y="118" width="446" height="96"/>
+  <text class="s" x="486" y="136" style="fill:#bdbdbd;font-weight:700">home server</text>
+  <rect class="node" x="486" y="140" width="190" height="48"/>
+  <text class="t" x="581" y="161" text-anchor="middle">Caddy · TLS · :8443</text>
+  <text class="s" x="581" y="178" text-anchor="middle">terminates the cert here</text>
+
+  <!-- Caddy -> web : HTTP (loopback) -->
+  <line class="http" x1="678" y1="154" x2="704" y2="154"/><line class="http" x1="678" y1="166" x2="704" y2="166"/>
+  <path class="core" style="stroke:#c9c9c9" d="M678 160 L706 160" marker-end="url(#ap)"/>
+  <text class="plab" x="672" y="146" fill="#7f8b97">HTTP</text>
+
+  <rect class="node" x="706" y="140" width="192" height="48"/>
+  <text class="t" x="802" y="161" text-anchor="middle">web — SPA (nginx)</text>
+  <text class="s" x="802" y="178" text-anchor="middle">zoci.me · js1.zoci.me</text>
+
+  <!-- protocol legend -->
+  <line class="https" x1="40" y1="272" x2="72" y2="272"/><text class="leg" x="80" y="276">HTTPS (TLS)</text>
+  <line class="wg" x1="176" y1="272" x2="208" y2="272"/><text class="leg" x="216" y="276">WireGuard</text>
+  <line class="http" x1="306" y1="272" x2="338" y2="272"/><text class="leg" x="346" y="276">HTTP (plaintext)</text>
+  <text class="leg" x="470" y="276" style="fill:#8a8a8a">core line = the request · sheath = its transport wrapper</text>
+
+  <text class="s" x="40" y="304">No authentication. The browser's HTTPS is carried raw across the internet, then inside WireGuard from the VPS to home, where Caddy terminates TLS.</text>
+  <text class="s" x="40" y="322">Public content only — the marketing/portfolio SPA and the Jellyfin redirect. The VPS forwards raw TCP and never decrypts.</text>
+</svg>
