@@ -33,7 +33,7 @@ export type SystemStatus = z.infer<typeof SystemStatus>;
  * (Compose project name is `infra`, hence the `infra-<svc>-1` container names.)
  */
 export const SERVICES = [
-  { name: 'Caddy', container: 'infra-caddy-1' },
+  { name: 'Caddy', container: 'caddy' }, // pinned via container_name (compose)
   { name: 'Web', container: 'infra-web-1' },
   { name: 'API', container: 'infra-api-1' },
   { name: 'Jellyfin', container: 'jellyfin' },

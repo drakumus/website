@@ -1,0 +1,6 @@
+# Guest allowlist for oauth2-proxy — one Google (Gmail) address per line.
+# Copy to emails.txt (gitignored) and fill in. oauth2-proxy hot-reloads it: add or remove a
+# line to grant/revoke a guest, no restart. The REAL file must contain emails only — no
+# comments (oauth2-proxy treats every non-empty line as an address).
+# alice@example.com
+# bob@example.com

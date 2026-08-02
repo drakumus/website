@@ -1,0 +1,16 @@
+# Split-DNS resolver for the tailnet-only names (see ~/specs/secure-access.md §4).
+# Tailscale split DNS routes queries for these three names to this server (HOME_TS_IP:53);
+# it answers each with the home tailnet IP. It only ever receives these names, so it needs
+# no upstream/forwarding. Env vars are substituted by CoreDNS at parse time ({$VAR}).
+#
+# `bind` restricts the listener to the tailnet IP only — never 0.0.0.0 — so :53 isn't
+# exposed on the LAN and doesn't collide with the host's systemd-resolved stub listener.
+admin.zoci.me ha.zoci.me finance.zoci.me {
+    bind {$HOME_TS_IP}
+    template IN A {
+        answer "{{ .Name }} 60 IN A {$HOME_TS_IP}"
+    }
+    template IN AAAA {
+        rcode NOERROR
+    }
+}

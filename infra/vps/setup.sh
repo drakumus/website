@@ -30,8 +30,10 @@ install -d /etc/nginx/stream.d
 cat > /etc/nginx/stream.d/zoci.conf <<EOF
 # Raw TCP passthrough to the home server over Tailscale. nginx never decrypts;
 # TLS terminates at home. Home sees this VPS's tailnet IP as the source (constant).
-upstream zoci_home_https { server ${HOME_TS_IP}:443; }
-upstream zoci_home_http  { server ${HOME_TS_IP}:80;  }
+# Port-split (secure-access.md §7.1): public :443 forwards to home :8443, leaving home :443
+# for the tailnet-only private vhosts (which the VPS is ACL-blocked from reaching).
+upstream zoci_home_https { server ${HOME_TS_IP}:8443; }
+upstream zoci_home_http  { server ${HOME_TS_IP}:80;   }
 
 server {
     listen 443;

@@ -1,18 +1,58 @@
+# ============================================================================================
+# CUTOVER Caddyfile (secure-access.md Stage 6). NOT LIVE until swapped in for ./Caddyfile at
+# the cutover. Changes vs the current live config:
+#   - auto_https OFF; every vhost loads the acme.sh wildcard from /certs (no inbound ACME).
+#   - PORT-SPLIT: public vhosts on :8443 (VPS forwards :443 -> home:8443), private on :443.
+#   - Explicit port-less :80 -> HTTPS redirect (Caddy's auto one would leak :8443).
+#   - New private vhosts (admin/ha/finance, tailnet-only) and the guest OAuth surface.
+#
+# Requires (applied at cutover, see setup checklist Part B):
+#   - compose `caddy`: container_name: caddy · env HA_ADDR · mount ./certs:/certs:ro
+#   - VPS forwarder :443 -> home:8443 · Tailscale tag ACL · home firewall · guest public DNS
+# ============================================================================================
+
 {
-	# ACME contact email comes from the environment (see infra/.env, gitignored).
-	# Optional — Caddy still issues certs without it.
-	email {$ACME_EMAIL}
-	# ACME uses HTTP-01 and/or TLS-ALPN-01; both :80 and :443 are forwarded to us by
-	# the VPS, so either challenge works through the passthrough.
+	# All certs come from the wildcard file below; Caddy's own ACME is disabled.
+	auto_https off
 }
 
-# Shared HSTS header for all sites.
+# ---- snippets ----
 (sec) {
 	header Strict-Transport-Security "max-age=31536000; includeSubDomains"
 }
 
-zoci.me {
+(wildcard_tls) {
+	tls /certs/zoci.me.crt /certs/zoci.me.key
+}
+
+# Drop any client-supplied X-Auth-Request-* — the trusted copy is set ONLY by forward_auth on
+# guest (§7.2). Imported by every internet-facing vhost so the shared `api` can't be spoofed.
+(strip_auth_headers) {
+	request_header -X-Auth-Request-Email
+	request_header -X-Auth-Request-User
+	request_header -X-Auth-Request-Groups
+	request_header -X-Auth-Request-Preferred-Username
+	request_header -X-Auth-Request-Access-Token
+}
+
+# Fail-closed backstop for private vhosts (§7.1): 404 anything not from the tailnet. The
+# Tailscale ACL (VPS can't reach :443) is the real boundary; this is belt-and-suspenders.
+# Use inside a `route {}` so it deterministically precedes the vhost's own handler.
+(tailnet_guard) {
+	@offnet not remote_ip 100.64.0.0/10 fd7a:115c:a1e0::/48
+	respond @offnet 404
+}
+
+# ---- HTTP -> HTTPS (port-less; works for public :443->VPS->:8443 and private :443 direct) ----
+:80 {
+	redir https://{host}{uri} permanent
+}
+
+# ================= PUBLIC (served on :8443; VPS forwards :443 -> home:8443) =================
+zoci.me:8443 {
 	import sec
+	import strip_auth_headers
+	import wildcard_tls
 	encode zstd gzip
 	handle_path /api/* {
 		reverse_proxy localhost:8000
@@ -20,12 +60,68 @@ zoci.me {
 	reverse_proxy localhost:8080
 }
 
-www.zoci.me {
+www.zoci.me:8443 {
 	import sec
+	import wildcard_tls
 	redir https://zoci.me{uri} permanent
 }
 
-js1.zoci.me {
+js1.zoci.me:8443 {
 	import sec
+	import strip_auth_headers
+	import wildcard_tls
 	reverse_proxy localhost:8096
+}
+
+guest.zoci.me:8443 {
+	import sec
+	import wildcard_tls
+	encode zstd gzip
+
+	handle /oauth2/* {              # oauth2-proxy endpoints must BYPASS the auth check
+		reverse_proxy localhost:4180
+	}
+	handle {                        # everything else needs an allowlisted Google identity
+		route {                     # explicit order: strip BEFORE forward_auth sets the trusted header
+			import strip_auth_headers
+			forward_auth localhost:4180 {
+				uri /oauth2/auth
+				copy_headers X-Auth-Request-Email
+			}
+			rewrite * /guest{uri}   # api guest routes live under /guest/*
+			reverse_proxy localhost:8000
+		}
+	}
+	handle_errors {
+		@unauth expression {http.error.status_code} == 401
+		redir @unauth /oauth2/sign_in?rd={scheme}://{host}{uri}
+	}
+}
+
+# ================= PRIVATE (tailnet-only; served on :443) =================
+admin.zoci.me {
+	import sec
+	import wildcard_tls
+	route {
+		import tailnet_guard
+		respond "admin — coming soon" 200
+	}
+}
+
+ha.zoci.me {
+	import sec
+	import wildcard_tls
+	route {
+		import tailnet_guard
+		reverse_proxy {$HA_ADDR:127.0.0.1:9}
+	}
+}
+
+finance.zoci.me {
+	import sec
+	import wildcard_tls
+	route {
+		import tailnet_guard
+		respond "finance — coming soon" 200
+	}
 }

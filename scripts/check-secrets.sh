@@ -9,7 +9,10 @@ set -uo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
 fail=0
-ALLOW='127\.0\.0\.1|0\.0\.0\.0|::1|example\.com|<[A-Za-z0-9_-]+>'
+# Allowlisted (safe): loopback/placeholders/example.com, plus the universal Tailscale ranges
+# (CGNAT 100.64.0.0/10 + IPv6 ULA fd7a:115c:a1e0::/48) — same for every tailnet, not secrets;
+# used by the private-vhost source-IP backstop in infra/Caddyfile (secure-access.md §7.1).
+ALLOW='127\.0\.0\.1|0\.0\.0\.0|::1|example\.com|<[A-Za-z0-9_-]+>|100\.64\.0\.0/10|fd7a:115c:a1e0::/48'
 
 # Skip binary-ish assets and lockfiles: no secrets there, and their numeric blobs
 # (SVG path data, hashes) false-positive on IP-like patterns. BrandIcon.tsx holds inline

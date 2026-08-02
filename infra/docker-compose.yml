@@ -1,5 +1,6 @@
 services:
   caddy:
+    container_name: caddy      # stable name so acme.sh's reload (docker exec caddy) works
     image: caddy:2-alpine
     # host networking: binds :80/:443 on the host and reaches web/api/jellyfin via localhost.
     network_mode: host
@@ -7,8 +8,10 @@ services:
     environment:
       # ACME contact email, from infra/.env (gitignored). Empty is fine.
       - ACME_EMAIL=${ACME_EMAIL:-}
+      - HA_ADDR=${HA_ADDR:-}     # ha.zoci.me reverse-proxies here (LAN)
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./certs:/certs:ro         # acme.sh wildcard, loaded by every vhost (auto_https off)
       - caddy_data:/data
       - caddy_config:/config
     depends_on:
@@ -36,6 +39,8 @@ services:
       dockerfile: api/Dockerfile
     image: zoci-api:latest
     restart: unless-stopped
+    networks:
+      - broker
     ports:
       - "127.0.0.1:8000:8000"
     environment:
@@ -50,6 +55,77 @@ services:
       timeout: 5s
       retries: 3
 
+  coredns:
+    # Split-DNS resolver for the tailnet-only names (secure-access.md §4). host networking
+    # so it can bind the tailnet IP directly on :53. Needs HOME_TS_IP set in infra/.env
+    # before deploy (an empty value makes CoreDNS fail to bind — it won't affect the other
+    # services, but the container will restart-loop until HOME_TS_IP is set).
+    image: coredns/coredns:1.11.3      # TODO (§11): pin by digest
+    network_mode: host
+    restart: unless-stopped
+    command: ["-conf", "/etc/coredns/Corefile"]
+    environment:
+      - HOME_TS_IP=${HOME_TS_IP}
+    volumes:
+      - ./coredns/Corefile:/etc/coredns/Corefile:ro
+
+  ha-broker:
+    # Minimal HA credential holder (secure-access.md §6). Standalone package; the ONLY
+    # process that holds HA_TOKEN. No host port — reachable only by `api` on the internal
+    # bridge. Needs HA_ADDR + HA_TOKEN in infra/.env to serve /dashboard (until then /health
+    # is up and /dashboard reports unconfigured).
+    build:
+      context: ../ha-broker
+      dockerfile: Dockerfile
+    image: zoci-ha-broker:latest
+    restart: unless-stopped
+    networks:
+      - broker
+    environment:
+      - HA_ADDR=${HA_ADDR:-}
+      - HA_TOKEN=${HA_TOKEN:-}
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  oauth2-proxy:
+    # Guest login gate (secure-access.md §7.2). Google OIDC; Caddy calls it via forward_auth
+    # and reverse_proxy /oauth2/*. Published on host loopback so only host-net Caddy reaches
+    # it. Egress to Google is via the default bridge (not on the broker network). Distroless
+    # image → no in-container healthcheck; verify via the host /ping.
+    image: quay.io/oauth2-proxy/oauth2-proxy:v7.7.1     # TODO (§11): pin by digest
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:4180:4180"
+    environment:
+      - OAUTH2_PROXY_PROVIDER=google
+      - OAUTH2_PROXY_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
+      - OAUTH2_PROXY_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}
+      - OAUTH2_PROXY_COOKIE_SECRET=${OAUTH2_PROXY_COOKIE_SECRET:-}
+      - OAUTH2_PROXY_REDIRECT_URL=https://guest.zoci.me/oauth2/callback
+      - OAUTH2_PROXY_HTTP_ADDRESS=0.0.0.0:4180
+      - OAUTH2_PROXY_REVERSE_PROXY=true
+      - OAUTH2_PROXY_SET_XAUTHREQUEST=true
+      - OAUTH2_PROXY_EMAIL_DOMAINS=*
+      - OAUTH2_PROXY_AUTHENTICATED_EMAILS_FILE=/etc/oauth2-proxy/emails.txt
+      - OAUTH2_PROXY_COOKIE_SECURE=true
+      - OAUTH2_PROXY_COOKIE_SAMESITE=lax
+      - OAUTH2_PROXY_WHITELIST_DOMAINS=guest.zoci.me
+      - OAUTH2_PROXY_UPSTREAMS=static://200
+    volumes:
+      - ./oauth2-proxy/emails.txt:/etc/oauth2-proxy/emails.txt:ro
+
 volumes:
   caddy_data:
   caddy_config:
+
+networks:
+  broker:
+    driver: bridge
