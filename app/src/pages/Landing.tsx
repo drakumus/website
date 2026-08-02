@@ -1,6 +1,6 @@
 import { Box, Center, SimpleGrid, Card, Text, Group, ThemeIcon, Stack, Paper } from '@mantine/core';
 import { motion } from 'motion/react';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import { AnimatedBackground } from '../components/AnimatedBackground';
 import { useSystemStatus } from '../lib/api';
 import { panelStyle } from '../theme';

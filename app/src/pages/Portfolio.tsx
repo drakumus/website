@@ -19,7 +19,7 @@ import {
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { motion } from 'motion/react';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import type { Project } from '@zoci/shared';
 import { projects } from '../data/projects';
 import { profile, socials } from '../data/profile';
