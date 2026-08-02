@@ -11,7 +11,7 @@ x-logging: &default-logging
 services:
   caddy:
     container_name: caddy      # stable name so acme.sh's reload (docker exec caddy) works
-    image: caddy:2-alpine
+    image: caddy:2-alpine@sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648
     # host networking: binds :80/:443 on the host and reaches web/api/jellyfin via localhost.
     network_mode: host
     restart: unless-stopped
@@ -88,7 +88,7 @@ services:
     # so it can bind the tailnet IP directly on :53. Needs HOME_TS_IP set in infra/.env
     # before deploy (an empty value makes CoreDNS fail to bind — it won't affect the other
     # services, but the container will restart-loop until HOME_TS_IP is set).
-    image: coredns/coredns:1.11.3      # TODO (§11): pin by digest
+    image: coredns/coredns:1.11.3@sha256:9caabbf6238b189a65d0d6e6ac138de60d6a1c419e5a341fbbb7c78382559c6e
     network_mode: host
     restart: unless-stopped
     logging: *default-logging
@@ -130,7 +130,10 @@ services:
     # and reverse_proxy /oauth2/*. Published on host loopback so only host-net Caddy reaches
     # it. Egress to Google is via the default bridge (not on the broker network). Distroless
     # image → no in-container healthcheck; verify via the host /ping.
-    image: quay.io/oauth2-proxy/oauth2-proxy:v7.7.1     # TODO (§11): pin by digest
+    # Pinned by digest (v7.15.3). Upgraded from v7.7.1, which predated fixes for the
+    # skip-auth-route and X-Forwarded-Uri auth-bypass classes (not exploitable here — no
+    # skip-auth routes configured — but this is the sole identity gate, so keep it current).
+    image: quay.io/oauth2-proxy/oauth2-proxy:v7.15.3@sha256:10a1165743a192e1940b4708fb9647027185ce11a681a1c5519b442ff7f1f561
     restart: unless-stopped
     logging: *default-logging
     ports:
