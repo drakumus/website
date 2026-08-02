@@ -1,4 +1,4 @@
-# infra — gotchas (read before touching this dir)
+# infra gotchas (read before touching this dir)
 
 - **Caddyfile edits need `docker restart caddy`, NOT `caddy reload`.** The single-file bind
   mount pins the old inode when an editor rewrites the file, so a bare reload serves stale
@@ -19,7 +19,7 @@
   reproducibility. `make check-updates` flags stale ones; re-pin + `make deploy`. Base images
   (`node:22-alpine`, `nginx:alpine`) float to latest on rebuild.
 
-- **All container logs are bounded** via the `x-logging` anchor — apply it to any new service.
+- **All container logs are bounded** via the `x-logging` anchor. Apply it to any new service.
 
 - **No secrets here.** `infra/.env`, `infra/certs/`, `infra/oauth2-proxy/emails.txt` are
   gitignored; the tracked Caddyfile/compose reference `{$ENV}` only. Deep design lives locally
