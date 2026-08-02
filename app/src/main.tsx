@@ -7,6 +7,9 @@ import '@mantine/core/styles.css';
 import '@fontsource/open-sans/400.css';
 import '@fontsource/open-sans/600.css';
 import '@fontsource/open-sans/700.css';
+// Shared visual layer (tokens, hero title, gold frame, entrance motion) — one source of
+// truth, also inlined into the guest dashboard by the api. Load before app-only overrides.
+import '@zoci/shared/theme.css';
 import './index.css';
 import App from './App.tsx';
 import { theme } from './theme';

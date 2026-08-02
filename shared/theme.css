@@ -1,0 +1,128 @@
+/*
+ * Shared visual layer for zoci.me — the SINGLE source of truth for the site's look.
+ * Consumed by both surfaces so nothing is hand-duplicated:
+ *   - the Vite app imports it in app/src/main.tsx (Vite bundles it), and
+ *   - api/src/server.ts inlines it into the standalone guest dashboard at startup.
+ * Edit design tokens, the hero-title treatment, the gold iron-frame, and entrance
+ * motion HERE — not in app/src/index.css or api/src/guest.html.
+ */
+
+:root {
+  /* Palette — mirrors the Mantine maroon in app/src/theme.ts plus the panel/gold trim. */
+  --bg: #131417;
+  --panel: #16171a;
+  --text: #ececec;
+  --muted: #9a9a9a;
+  --maroon: #c62828;
+  --gold: rgba(196, 160, 84, 0.28);
+  --gold-text: #c4a054;
+  --hairline: rgba(255, 255, 255, 0.06);
+
+  /* OSRS iron-rivet frame art (source: app/public/frame/*.png), inlined as data-URIs so the
+     exact same frame renders in the bundled app AND the origin-isolated guest page with no
+     shared asset host. Regenerate with scripts/gen-frame-css.mjs if the art changes. */
+--f-tl: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABkAAAAeCAYAAADZ7LXbAAAACXBIWXMAAA7EAAAOxAGVKw4bAAAFE0lEQVRIibWWaWyURRjHfzPvu+/uUkoLtos90FLoBXhxiGIQlWAFI0SN8QADRgKxGhIxCtGo8UzUxvsWUDzwAkW8OOQqkYDh0EAbcBuKtHR7bXcXaHf3PWb8gOARExHX/6f5Ms9v5nn+zzwjtNb83xInFosfnxYfN+5i0ZPoUqOvre0PdN84aYjoE/QbDQdiav+hbgUwcezZuaYhSaZc/H4TKSSgMaXAVaC0wkm7uBqkACkFJkAs/IUShiUAdm9bDaCfXVjNnDsXcizRhpQSO92D9lyUBikknudg+vyYpv/kiTUKpTw818a20ySPJVi+cg0iXPecDhVXkFM6hbtuGgWGIJVyeeXN92jau5bKCfdQu6Ca/LxcGvY3s7ouzHVXDqestIDBg0uofXU5K9aFAfjitdsQhkEgYBHKD2EFghjSQMTCnyeC/Yf0O7h3DfmFZTh2EiklweyBZA+6jE9fupXKyio21W3lUEuU/Lxs7ntmLeeVh9j0zRKsrDxCpeOZd+uFTLt6ApHWViLtUcqGnM2AAQOw0zZmrC2sWpoaiLS10hZppaOjE9Mn2P1TEzdMKuf8kaM5q3IijeGf2R+OYEpBw8aneXnRxyx79w2mz6rhcP0qAtmF7Nz8AbbtAoL7nvyQURVFSOP3wuth5SFeeWQ6P+7ZxxWXXkRXNEpB0SA62yN0dEW54c6lbVKKw0rpo0ueuDZ/6vUzhhumX+/avlZvqNuF5ffpw5GYG/Ab8y8YUfruW+9vEf6Aj3QqrQG6H5h7iT7yy3qdaFqjaxdU64M/vKofrpmg170zV0cblunVi2Y7wJTcfkE/CAkMBBYDHwGPATcBI4EQkAMEAOuEIeTlowvF/Lvv4buv3ydncDWR9jhd7S1kZVn4pCSd7qW0rFw+XDO+MH4kZYNWQDuI2SBuBh78DbYL6AASQAqwT0DMnH5Bw/XSXFfzNp+8OINRYy6ifs+PzJk7D63B8Fn4g7mysqx4/sypw5ctXbW397cMn3IXy0hHr9LK44X7J1NVNYzi8suIdseJtjWSTsZJdB4kp/hCJk+bOXjkeSUDTzXwH2Wmemzl2mn652bz/dbtNDaGmfPgZ9pxlh9+dN7l2z3X7Zxc3XR+44FmY2HtuvRpQXo8D9PyU/9zC8rTbNkexnHUTuCqh17cmAhapj7Y0i06kp5IJm33dCASjr83X65vID8vm1HnDAJoBhED3KTtektX1bvfrtvn/Js6/ElFob7x5h2L9b2zxmpAN2x8WtcuqG4F0fe0Av7dTbKChhSGpKpiEGNHFPL64k+47fY7zgQ9JmOQjljKU65NVcVQVq98k4rSAkyrjy4K9Q1kDJKXG9Q+f5CnXl6BlZXH9Fk17Pj+K+14KpUxiGX4MH19WLkhzLCRVwKwoW7nvlTK/SljEFAnp+Mt15xDILuQISUF75SXDIhlCmK6SkmAJ+dP5IoJY9m95UO27WrUO+rbMjb8peOC1grTMPhuwzYONbfQ1nlM/PPWU5eplKeUctlT38JRxyEraPFt3QENQpx28/0VkuxJazedxLRM+lsmzy/diqMUf/jI/GfJWFKRtpNE40eZdOlwJo0ryVjwkxDLRPhMH6s2NdEZTYAHwNCCvD6Zg/h8Umrg7hljCJ2RQ6InBZAb6erJnLviR9I62XuE8RdXUVRcyJSJ5wI4mQIAmIA6Go8xtKwM13FQrgPgZtJdEmDlN5vx+4NEu7vp7bXheGUyZq9fAeJNNuryzCpfAAAAAElFTkSuQmCC");
+  --f-tr: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABkAAAAeCAYAAADZ7LXbAAAACXBIWXMAAA7EAAAOxAGVKw4bAAAFD0lEQVRIibWUaWxUVRiGn3vn3lmYTqfL0NIFUkpLWUpKiqYIAZHYVnCBCMYVWZVYYoyIUcGIif4Ag0aJEGIkigruAqKsAQRCBVIQhJZCoQULlM60naF1OnNn7j3HP2hK3LAZnz/fj5Oc5zs57/cpUkr+b5SpEwuFEBIhQVNAd2ioioqmgikkoCCkwDBMXE4N0xLsPnwxBFA0IE0dlp+qdkcM6/Nd5yWQVrNxUdDt9anV1T/KuS9vTgHQSob0U6ZPrcSV5MVud2DT7KiqDQX1j05M08CMG9hsOkIKVIVUxaZhd7gRQpDk7UfZqmUsXLZDdkXiFJSUMC2vhPsfnCNSC6eoypl9K6QlLGLRCP6An2g0xqn6Jha/tRuAaeWFLKqaTlPTBRoaW/hmZy13jS9kWFF/Am0hFi3fQf2+NxlYXMGCJ2fgdGpgSd797CjXGrfiv3QG5eedr0tN07h8+RIN5y/SEQxz58TRbP5+Hys/PoK/8QCxcBsTJs/hxFk/bzxfQaCtiwG56UwYP4b6+tM88PTHdDX/QKSrFSEEut1F4EoDecWVRILnO21Wd9ur1YdO8tGmakYVDyA324fH7ebhOS/xzLx7EGaUDevW4HSprFv5LI3nmwi0dTGyeCCjy2fj0g2uNjdy5uRh4tEATefOEu4M0BFsJ9bVgmWEIsqY4owkh9OhGNE4Tzw2Tv50qvHxqGG9lZOVqsWMuDJxfCmlZRWKZRrKt19/UjtnycaAqioeIWTOl6tm9svwpdM3M4uWy8340tPZs/8QI0cMYcHS9dSd9QMoPZNmB5yAF8gASoGHgNeAz4C1QCYoakqyywFM3v7+vHh73Qa568P5cmnV7fLCkdVyxQuV8lrTDtl5cbdcMn+sBDq0HpLY9Rq9Xv3AsetJv96NlCAJdUZjS6vGZecXDlYNoxtdVXG77bS1XqKlNYR3YCXfrJ7Nwmefo/pok9JT8g/cOLEz7xvuGlKYuzA9M1/VnR5Kbstk5BjYv2czVfNnUFZayP1VH9BaW4E32WW7ScmNlJbkZU6aMnNgUsYwWk5vQ3f0IdzZRntHiNzBE+j+tZN3Fk9CCosWf7foleTFFbuM9DTvyYL8/ta2HQeP2zSt7ysr95bpupqT4vUorf4OUlM8mDGDaDjWO0kkEmtZv/Xo2AzXcfnF9jMyEjMVwBuPi+1fbTl8S3amF9WmUDHJQdiyeuyO/4SU23bVx9d9W2tGYqYFmKAEgeZRI/rT1+dhy+46hBS9u/7vUZJWvFB5pW7vGxKQz88qk801a2VORlKoly/5K+Sts+c+1W/N2i8oK85maFF/FJuK22VTEybJyUhyavY+sig/i+2b3mNoUQHCjOEPRq2ESeKWiNYc/E4+OqsKu9vH8ne/Rne48KW4ZMIk0ah5Ys/+o/UAw0or2LSnAU3vg92m9zZdf2ZwXlpwUF7Wh05PNo/cO6LHibjZtfLv1NRelYeOnZNDD3zKlLtvx5PkBMAUQk2YBOBq4Ffll+ZLNDRewW7XkFIQNyGBEkXZtr9R3jG6gJq6Zjy6jhAmQlgigXMCcSF4e101qW4Xml3DNCJEwkbi0vU75WPyKB8/nPZQF0YsQjAiEpeuLF8fgAIsCLRfY1CuD13TsWskLl0tbWEJpFwLR8lI99I3LRkJ6Lqa2HQBcW+yk5zcbFQg0t1JqDOhf6IogGlEYkjLJDklha5QECCh6VIAyx/oJmZaOBwuNm3dB8BvifQzdA0+wk4AAAAASUVORK5CYII=");
+  --f-bl: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABkAAAAeCAYAAADZ7LXbAAAACXBIWXMAAA7EAAAOxAGVKw4bAAAE9ElEQVRIia3Wa2xURRTA8f/MvXvvbh/Lbh/bBy3G0pbaig9KsLYWShFbohSIiviKJibECBGjUXx8sSpoSIGQCCYIPhAwGESJDwSCSJFEBIuKYitYGqHbUrYta9nu6+4dP4D4Vcw9yWSSSWZ+JzlnJgMw9MLCOtV1oE3t37pEzW0oVcB6EAKHQgK0NNcTj0fJzMwkGkkAiMvDkdAB/FnZhAb6SaUsArlpABqgnEQkAv4804vLMDA9xuV15Rzi85rCk+blyLE/0HVJ+K8YgMspAEAmk7YtgNWbj1A0Npsx6W6ACwU56c4VPmGhklaSloZryc0ec6kacKovNOqUge73SEzDQ7Yvk73tv/L14R7HDv8npCfdFLrpwUpYDEeiPPVILS4pnUWk1KSUOhOriphcWUxhQQ6zppYIR7vLpYMQEiuV4vbGGlTKJj83wzEAQOpS2gAvrtrHzi8OcHP9/dRMKhWTq/KdfFbklay3fnac2EiQP3r6Hv29Z8jvGJJIJbGSo8xtLONExx4AGqdWV7jd+o2OIaELUZGMR1m6+G4SkRBb3lvH5Lq7hEuTbseQgN+tSd3gt65TNM9dSFd3H1ZiVPQOXIw5hkSiKVulbH7rOsPhX4I8/th83t34Vj+II04hlI7zDQV/3qQqr/WpFc/eoVYtbVLADhCO3UgdQArJ7BmVnA+NEDwXBigG5QfCHkNX85sniIFoSuza22X9n0uqp2saViJOVXkRo9E4tVMq+GhvZ3Uyaf/4ypPTD6cs6/ysprqbTnWf0b759vTcaDQevGrEnW5I3TAZvjBC4/R6yie1sD48IqbeVleU7s0pSsZHKbhuFhUTT8TeGAqbS179/GoN9IJAmhRSY8nyXXyUn01ahpfsLB/Z+aUoBWneAOGz37Nn18enO37qOXfVAqAVZHueW3BPi7umMo17Fm/ClRqkdspEtu/4BD0xSKY3nfBQ0N7ffvSlNZt/+P7frUL81x+N3H80qFatXsntdz5E+PRuCvJ85OQVEYkkSNo2pplG98nf7dZ1B4M+r9u43HV5oDaA+hB4FVgATAICwBjADRhX0rk8q8ryAGtbH+TH4500Tq0hNDhIwdhizp/rYyA0yL2L3u+XUvTathp5Z9m83Ja7H6rSdFN1HN6jvm7vwDBdqrdv2HKb2tM3X1+y6e3NB4XpdhGPxZXoPrhiOBJN+vr6gxgug4GB8+guwbGfTtPZPcDylxcxrmIGX25rY1/7cUquyaG5eQZvbthG1fhCHnz0CQDcmYX8cGALZ3uDDA7/xdvbDlE9YSxSA92fXyYL/eNx/bKb3MIykokoUkpmzs4js7iB+S1HiY1GONsXwuMxsGxF5fTnuLE8wLLWVlweP4GSep58eApz7pzGye4gWf50Vrx4P1lZWSTiCfRQX483oJlUNDzL4gXVoAliMYu16z+g88BKKqY9Q9vSJnJzfEhtiC07j9G6uIGykgI6jx+ibd12ItEkr68/RGaGmxuqSnC7DXJzcjDcHjIyvJdqMnxypy00QwAc++4rpj+whlXPN7Fw0fNcDPcjpSQRj6BSFra69EKkUkl0l4mum1e6SGFj2ylSVoJEIk70Ypjtn+7+97+78bU5F2prbxWRcMiePK/NDwzdN3O8SPOY2onuYbvrzyEbYMYt1/h0TRKNWZimjhQSUOhSYNlgK5tk3MJSIAVIKfgbkCvvphjQMf8AAAAASUVORK5CYII=");
+  --f-br: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABkAAAAeCAYAAADZ7LXbAAAACXBIWXMAAA7EAAAOxAGVKw4bAAAE5klEQVRIia2VWWxUVRjHf+fcO/fOdJ3pMrS0kBZbIQUkFAwVQiVV1rA0ASEGCQpCDGAwWqKiAX0haBQTozWaGEGW6IMgGGQLloqCLAWxQBfogkCR6aQLZZiZO3Pv8QFieDTknuTkPHwPv5zv///+H7h2hAC+qp5Soup2rVUt9R+pt1dOUkCPdA+CAEQ0YpGenk48HmXujMkA6C5CFKAFc1OI3B0gFo2SE8xzG6IUoJs+g1C4l4RlkTMoD0C62S4AT/+dGKcbWjhzvg1fSgb+DFO4BsnPSRVAX2aql8KCbD7ZcQYBJBKO4xrkVvgewFU0yM3OZO6UYhLJBFYS5abwABw50YltQ7Y/HdPwEfBJXNXEIyWvLZ1IbyRK0kqimz58qaZw1V0zKx8Tg/NzGF9mYRg6UupIqbnrrrzcNDV0SCHPVlWQtG2EkHh03GvX+JF5oqK8RIyd/Dx799ezfstRAHQp3XNXa2dPoK3z1ouxgS52/dT4UEUq1yBerz6mqnLcCIDL5w5TXVVKMnEPy0641y6PJr3jJ80WO7fWYkXCvLlmPol4lHBf1L2Jvxm6G0ta90RL+y1mVK+kqeUqUjcIBryai+4SZ775+ot/Xlm+kFMXu2hquY6yHSJR23GPgZDA7i1vTlcfrpumyor9quuvb1XJUP+jLi0hZk4d4Vk6d6TuM3QN0EEFgCENjdfpDg8w55ky5AM1HmnifT4jf/GscT+WDBtiFxVm/anpeu6GT+smeDyyYMGcCdwO9ZDiM0lacVI17dEgm2ummrPnLRmdFizzFgwurvCYKSxeOJdff/udWQvfoPXcPn6pO45umHhTjUeLlXMXOm8f2Luto//GaTJzizB9frLzSsjO8nOj9RhNTZdZu+kAQmrkB1Pk//yJEPdfpQC27bsULSoMbBlX3v5lWkaWbG1s4HTjVaoqn6T2y+18vPUUu2tfQtdM+u9E7YchBvezzHxwC4HHgZGgSoEIsB5Etz/D63m/9njXU+XDnScnVsmE4xCJWOQMKiR/kJ/+jkMIqfPBpg3Une1S+sRRwTTTa4p4LMGKFyar8xfbF8fi9paC/IBuxROiqrKc8gnThJ2Mi30/7Jiw7J093XfuxtKBgoF4Qr/YeJaCohIqPSb9Pd1omuTcHwdZvXEnl1tDAFli5fwnlGNDQ8tNViyaRHYgg8KCwYx7ejGxgS4Adm6t5VJbF2teXsTBg0dpvxbmmcrRzFpUw9/NR1n/3ueMGBZk7JhikglFMJiLlbDIzxtMqs/TJ07ufksZpkFPTw9X2q7R0xvh2aoK9u6v59Ptpwm1H8eKhJkyaxkXWkN8uG4a3eEBhhZmM6VyIs3NTTz36nYGrh8jOnAbx3HwGD66u65QNGo60d62O6Kl/iNlOzZWLEqoO0QsZnGxueO/fTB/aik1qxbQ0dHJlfZb7D58iRmVpZQNH0J3uI+aDw7RXP8xxaOmsXrlErxeHWzFZ9810N/+M6EbLYiNqyarBdXT8aVlYhgmmm4gpYZ4KKCTyTjJRBxN8+AoBylAaDqGmYrjOKRl5vHV55t5ffMh6natZWzFjPtetC0VKJ0nRXVVqeM4CkeBLsBj6kgh0SUkHQUIHOUQjyfxeXWStsPRU9f6AIYPzZJlwwLyXjRuf3+kTQFZZ/fU9KZm5sgTJ06q5e/u9QP8C65H8/F04OwlAAAAAElFTkSuQmCC");
+  --f-rt: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACQAAAAkCAYAAADhAJiYAAAACXBIWXMAAA7EAAAOxAGVKw4bAAAAbklEQVRYhe3WoQ2FQAAE0T0I5hsKQFA6JZHQw28B5CFwmEkICSdmCtg8uaXWmpbqvgbcE0QJogRRgihBlCBKENUcqCRle2HnSLIn+SUZkvTX9gPQf12auoxlnsa2QH5qSBAliBJECaIEUYIoQdQJvHANq3sQ4aQAAAAASUVORK5CYII=");
+  --f-rb: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACQAAAAVCAYAAAAuJkyQAAAACXBIWXMAAA7EAAAOxAGVKw4bAAAAXklEQVRIie3WoQ2AYAxE4VcIAsUACEZnJBJ2YAWC6y9wmMMQKu4N0H7yIjOpVPc34JlBKoNUBqkMUhmkMkhlkKocKJZ5KrXQ4tjWWiCI/YO7J3ABIzAA/f3rBajapm4tPA2NEDQU7QAAAABJRU5ErkJggg==");
+  --f-rl: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABUAAAAkCAYAAABmMXGeAAAACXBIWXMAAA7EAAAOxAGVKw4bAAAATUlEQVRIie3MsQ2AMAADQScMwAAUGT0jMQUzUKFPnRosIcUvfXsC9Hap3NfZaccOoCpDQYMGDboGigN9HOjUV2hxoJsDnQoaNGjQf6MDZ409o1SggHIAAAAASUVORK5CYII=");
+  --f-rr: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABUAAAAkCAYAAABmMXGeAAAACXBIWXMAAA7EAAAOxAGVKw4bAAAATUlEQVRIiWP4//8/AyVYXpr//9Pz8/8zMDBegokxMdAAjBo6auiooaOGjhxD/w8ZQ3/TwtBvtDCUjRaGctPCUDgYNXTU0FFDRw2lGgAApBY/fjLhM3AAAAAASUVORK5CYII=");
+}
+
+/*
+ * Hero title — transparent glyphs with a crisp white outline (paint-order keeps the stroke
+ * outside the fill) and a one-shot light band that sweeps across on load.
+ */
+.title-accent {
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  -webkit-text-stroke: 2px #ffffff;
+  paint-order: stroke fill;
+  background-image: linear-gradient(100deg, transparent 35%, rgba(255, 255, 255, 0.85) 50%, transparent 65%);
+  background-size: 200% 100%;
+  background-repeat: no-repeat;
+  background-position: -120% 0;
+  -webkit-background-clip: text;
+  background-clip: text;
+  animation: shimmer-sweep 1.6s ease-in-out 0.15s 1 both;
+}
+
+/* background-size:200% means a larger position shifts the band LEFT; start off-left (220%)
+   and end off-right (-120%) to sweep left→right. Shared by the title and the frame gleam. */
+@keyframes shimmer-sweep {
+  from { background-position: 220% 0; }
+  to   { background-position: -120% 0; }
+}
+
+/*
+ * Gold-trimmed iron frame (corners + tiled rails) drawn as an ::after overlay ABOVE card
+ * content. Geometry per resources/README.md; the eight images come from the --f-* tokens.
+ */
+.gold-frame {
+  position: relative;
+  border: 0 !important;
+  border-radius: 0 !important; /* pixel corners can't be rounded */
+  background-color: var(--panel);
+}
+.gold-frame::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  image-rendering: pixelated;
+  background-image: var(--f-tl), var(--f-tr), var(--f-bl), var(--f-br), var(--f-rt), var(--f-rb), var(--f-rl), var(--f-rr);
+  background-repeat: no-repeat, no-repeat, no-repeat, no-repeat, repeat-x, repeat-x, repeat-y, repeat-y;
+  background-position: top left, top right, bottom left, bottom right, center -15px, bottom center, -15px center, right center;
+  background-size: 25px 30px, 25px 30px, 25px 30px, 25px 30px, 36px 36px, 36px 21px, 21px 36px, 21px 36px;
+}
+
+/*
+ * Metal gleam: a white sheen sweeping the trim once on load, in sync with the title. It
+ * reuses the frame art as a MASK, so the highlight lands only on the metal. A real child
+ * (z-index 4, above the ::after frame); pointer-events: none. Mask geometry mirrors
+ * .gold-frame::after 1:1.
+ */
+.frame-shimmer {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  image-rendering: pixelated;
+  background-image: linear-gradient(115deg, transparent 38%, rgba(255, 255, 255, 0.38) 50%, transparent 62%);
+  background-size: 200% 100%;
+  background-repeat: no-repeat;
+  background-position: 220% 0;
+  -webkit-mask-image: var(--f-tl), var(--f-tr), var(--f-bl), var(--f-br), var(--f-rt), var(--f-rb), var(--f-rl), var(--f-rr);
+  mask-image: var(--f-tl), var(--f-tr), var(--f-bl), var(--f-br), var(--f-rt), var(--f-rb), var(--f-rl), var(--f-rr);
+  -webkit-mask-repeat: no-repeat, no-repeat, no-repeat, no-repeat, repeat-x, repeat-x, repeat-y, repeat-y;
+  mask-repeat: no-repeat, no-repeat, no-repeat, no-repeat, repeat-x, repeat-x, repeat-y, repeat-y;
+  -webkit-mask-position: top left, top right, bottom left, bottom right, center -15px, bottom center, -15px center, right center;
+  mask-position: top left, top right, bottom left, bottom right, center -15px, bottom center, -15px center, right center;
+  -webkit-mask-size: 25px 30px, 25px 30px, 25px 30px, 25px 30px, 36px 36px, 36px 21px, 21px 36px, 21px 36px;
+  mask-size: 25px 30px, 25px 30px, 25px 30px, 25px 30px, 36px 36px, 36px 21px, 21px 36px, 21px 36px;
+  animation: shimmer-sweep 1.6s ease-in-out 0.15s 1 both;
+}
+
+/*
+ * Entrance motion — a gentle fade + rise. The app drives the same feel with motion/react on
+ * the portfolio; the guest dashboard (no React) uses this CSS utility, staggering cards via
+ * an inline animation-delay.
+ */
+.rise {
+  animation: rise 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes rise {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .title-accent,
+  .frame-shimmer,
+  .rise {
+    animation: none;
+  }
+}
