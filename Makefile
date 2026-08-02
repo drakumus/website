@@ -1,7 +1,15 @@
 COMPOSE = docker compose -f infra/docker-compose.yml
 PREVIEW_PORT ?= 8888
 
-.PHONY: build deploy down logs ps verify test check-secrets check-updates certs certs-staging preview
+# The deploy gate runs the fast unit/contract suites + a typecheck before building. `deploy` builds
+# from the working tree (not git), so running that same tree through the gate first is the right
+# alignment. Emergency escape hatch: `make deploy SKIP_TESTS=1` skips the gate to ship a fast fix.
+GATE = test typecheck
+ifdef SKIP_TESTS
+GATE =
+endif
+
+.PHONY: build deploy down logs ps verify test typecheck check-secrets check-updates certs certs-staging preview
 
 check-secrets:    ## Scan tracked files for leaked IPs / emails / tailnet names
 	bash scripts/check-secrets.sh
@@ -19,8 +27,9 @@ certs:            ## Issue/renew the real *.zoci.me wildcard cert (DNS-01 via Di
 build:            ## Build the web + api images
 	$(COMPOSE) build
 
-deploy: build     ## Build and (re)start the stack
+deploy: $(GATE) build  ## Gate (tests + typecheck), build, (re)start, then post-deploy smoke
 	$(COMPOSE) up -d
+	bash scripts/infra-smoke.sh
 
 down:             ## Stop the stack
 	$(COMPOSE) down
@@ -34,15 +43,20 @@ ps:               ## Show status
 verify:           ## Run the Playwright smoke suite against the live site
 	BASE_URL=https://zoci.me npm run test:e2e
 
-test:             ## Run every component's tests (extend as coverage lands)
-	$(MAKE) test-ha-broker
+test:             ## Run every component's fast unit/contract suite (the deploy gate)
+	npm test
 
-test-%:           ## Run one target's tests, e.g. make test-ha-broker | test-e2e | test-api
+typecheck:        ## Type-only check (the unit suites run untyped via tsx; images compile with tsc)
+	npm run build --workspace api
+	cd app && npx tsc -b
+
+test-%:           ## One target: api | app | shared | ha-broker | e2e | infra
 	@case '$*' in \
-	  ha-broker) npm --prefix ha-broker test ;; \
-	  e2e)       npm run test:e2e ;; \
-	  api|app)   npm test --workspace $* ;; \
-	  *)         echo "no test target '$*' (try: ha-broker, e2e, api, app)"; exit 2 ;; \
+	  ha-broker)    npm --prefix ha-broker test ;; \
+	  e2e)          npm run test:e2e ;; \
+	  infra)        bash scripts/infra-smoke.sh ;; \
+	  api|app|shared) npm test --workspace $* ;; \
+	  *)            echo "no test target '$*' (try: api, app, shared, ha-broker, e2e, infra)"; exit 2 ;; \
 	esac
 
 preview:          ## Serve docs/ (SVG diagrams, static previews) on the LAN; open from a laptop/phone

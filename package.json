@@ -14,6 +14,8 @@
     "dev:api": "GUEST_DEV=1 BROKER_URL=http://localhost:8081 npm run dev --workspace api",
     "dev:broker": "GUEST_DEV=1 PORT=8081 npm --prefix ha-broker run dev",
     "build": "npm run build --workspace app",
+    "test": "npm run test --workspaces --if-present && npm --prefix ha-broker test",
+    "test:par": "concurrently -n api,app,shared,broker -c green,blue,cyan,magenta \"npm test -w api\" \"npm test -w app\" \"npm test -w shared\" \"npm --prefix ha-broker test\"",
     "test:e2e": "playwright test"
   },
   "devDependencies": {
