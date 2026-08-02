@@ -5,8 +5,13 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { HealthResponse, SystemStatus, SERVICES } from '@zoci/shared';
 
+// True only when this file is the process entry point (prod `node dist/server.js` or
+// `tsx src/server.ts`) — false when imported by a test. Gates listen() + logging below,
+// so a test can import { app } and use fastify.inject() without binding a port.
+const isEntry = path.resolve(process.argv[1] ?? '') === fileURLToPath(import.meta.url);
+
 // v1 backend skeleton (site spec §6): wiring in place, features growing.
-const app = Fastify({ logger: true });
+const app = Fastify({ logger: isEntry });
 
 const PORT = Number(process.env.PORT ?? 8000);
 const HOST = process.env.HOST ?? '0.0.0.0';
@@ -116,10 +121,14 @@ app.register(
   { prefix: '/guest' },
 );
 
-app
-  .listen({ port: PORT, host: HOST })
-  .then((addr) => app.log.info(`api listening on ${addr}`))
-  .catch((err) => {
-    app.log.error(err);
-    process.exit(1);
-  });
+if (isEntry) {
+  app
+    .listen({ port: PORT, host: HOST })
+    .then((addr) => app.log.info(`api listening on ${addr}`))
+    .catch((err) => {
+      app.log.error(err);
+      process.exit(1);
+    });
+}
+
+export { app };
