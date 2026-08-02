@@ -39,6 +39,14 @@ services:
     # loopback-only: reachable by Caddy (host) and the box, never the LAN/internet.
     ports:
       - "127.0.0.1:8080:80"
+    # Hardening: read-only rootfs (nginx's writable paths go to tmpfs) + no privilege escalation.
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx
+      - /run
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1/"]
       interval: 30s
@@ -62,6 +70,13 @@ services:
     # No Docker socket here: the internet-facing api only reads a plain file.
     volumes:
       - ./status:/status:ro
+    # Hardening (matches ha-broker): non-root (Dockerfile USER node), read-only rootfs with a
+    # tmpfs for tsx's transpile cache + tmp, and no privilege escalation.
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8000/health"]
       interval: 30s

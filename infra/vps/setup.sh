@@ -4,7 +4,7 @@
 #
 # Installs an nginx `stream` (L4) TCP passthrough that forwards :80 and :443 to the
 # home server's tailnet IP WITHOUT terminating TLS. The home Caddy terminates and
-# gets its own Let's Encrypt cert via TLS-ALPN-01 through this passthrough.
+# gets its own Let's Encrypt wildcard cert out-of-band via DNS-01 (see infra/acme/issue.sh).
 #
 # Run as root on the VPS (Debian/Ubuntu):
 #   sudo HOME_TS_IP=<home-tailnet-ip> bash setup.sh

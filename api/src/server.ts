@@ -101,7 +101,7 @@ app.register(
       return reply.code(res.status).send(await res.json());
     });
     // The themed guest dashboard page (per-room light controls). Its JS pulls /dashboard
-    // and posts /toggle — both on this same vhost, so they land back on these guest routes.
+    // and posts /command — both on this same vhost, so they land back on these guest routes.
     guest.get('/', async (req, reply) => {
       const email = String(req.headers['x-auth-request-email'] ?? '');
       const safe = email.replace(

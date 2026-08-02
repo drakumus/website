@@ -1,4 +1,4 @@
-# Split-DNS resolver for the tailnet-only names (see ~/specs/secure-access.md §4).
+# Split-DNS resolver for the tailnet-only names (see ~/specs/complete/secure-access.md §4).
 # Tailscale split DNS routes queries for these three names to this server (HOME_TS_IP:53);
 # it answers each with the home tailnet IP. It only ever receives these names, so it needs
 # no upstream/forwarding. Env vars are substituted by CoreDNS at parse time ({$VAR}).

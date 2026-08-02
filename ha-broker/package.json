@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Minimal Home Assistant credential broker (see ~/specs/secure-access.md §6): the only process that holds the HA token; exposes a whitelist-only interface to api. Standalone package (own lockfile), NOT a root workspace.",
+  "description": "Minimal Home Assistant credential broker (see ~/specs/complete/secure-access.md §6): the only process that holds the HA token; exposes a whitelist-only interface to api. Standalone package (own lockfile), NOT a root workspace.",
   "main": "dist/server.js",
   "scripts": {
     "build": "tsc",

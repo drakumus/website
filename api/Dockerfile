@@ -11,6 +11,9 @@ RUN npm ci
 COPY shared ./shared
 COPY api ./api
 WORKDIR /repo/api
-ENV HOST=0.0.0.0 PORT=8000
+# Run non-root; tsx's transpile cache + any tmp go to a writable tmpfs so the rootfs can be
+# read-only (see infra/docker-compose.yml). HOME/TMPDIR point at /tmp for the same reason.
+USER node
+ENV HOST=0.0.0.0 PORT=8000 HOME=/tmp TMPDIR=/tmp
 EXPOSE 8000
 CMD ["npx", "tsx", "src/server.ts"]

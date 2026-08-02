@@ -1,12 +1,12 @@
 import Fastify from 'fastify';
 
-// Minimal Home Assistant broker (see ~/specs/secure-access.md §6). This is the ONLY process
+// Minimal Home Assistant broker (see ~/specs/complete/secure-access.md §6). This is the ONLY process
 // that holds the HA token. It exposes a narrow, whitelist-only interface to `api` over the
 // shared internal bridge — no host port, not internet-facing. It NEVER accepts a raw HA
 // entity_id or service from the caller: the guest sends only an opaque `key`, which this
-// process maps to a whitelisted entity + the fixed `light.toggle` service. So the write path
-// is as locked as the read path — a compromised `api` (or a nosy guest) can do no more than
-// toggle the lights below.
+// process maps to a whitelisted entity + the fixed `light` domain (turn_on/turn_off). So the
+// write path is as locked as the read path — a compromised `api` (or a nosy guest) can do no
+// more than switch the whitelisted lights below.
 
 const app = Fastify({ logger: true });
 
@@ -51,7 +51,7 @@ const KEY_TO_ENTITY = new Map<string, string>();
 for (const r of ROOMS) for (const l of r.lights) KEY_TO_ENTITY.set(l.key, l.entity);
 
 // Local-dev mock (GUEST_DEV) so the guest dashboard can be built without a real Home
-// Assistant: an in-memory on/off state per whitelisted key, flipped by /toggle below. Only
+// Assistant: an in-memory on/off state per whitelisted key, set by /command below. Only
 // consulted when HA_ADDR/HA_TOKEN are unset — i.e. never in production. See DEVELOPMENT.md.
 const DEV = !!process.env.GUEST_DEV;
 const devStates = new Map<string, string>();

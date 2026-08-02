@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Issue/renew the zoci.me + *.zoci.me wildcard cert via Let's Encrypt DNS-01 (DigitalOcean),
-# for stock Caddy to load from a file (see ~/specs/secure-access.md §5). acme.sh runs on the
+# for stock Caddy to load from a file (see ~/specs/complete/secure-access.md §5). acme.sh runs on the
 # HOST — the DNS API token never enters the repo or a container.
 #
 #   infra/acme/issue.sh staging   # LE staging dry-run (untrusted cert, no rate limits) — verify only
