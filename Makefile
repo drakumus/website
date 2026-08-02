@@ -43,20 +43,22 @@ ps:               ## Show status
 verify:           ## Run the Playwright smoke suite against the live site
 	BASE_URL=https://zoci.me npm run test:e2e
 
-test:             ## Run every component's fast unit/contract suite (the deploy gate)
+test:             ## Secret scan + every component's fast unit/contract suite (the deploy gate)
+	bash scripts/check-secrets.sh
 	npm test
 
 typecheck:        ## Type-only check (the unit suites run untyped via tsx; images compile with tsc)
 	npm run build --workspace api
 	cd app && npx tsc -b
 
-test-%:           ## One target: api | app | shared | ha-broker | e2e | infra
+test-%:           ## One target: api | app | shared | ha-broker | e2e | infra | secrets
 	@case '$*' in \
 	  ha-broker)    npm --prefix ha-broker test ;; \
 	  e2e)          npm run test:e2e ;; \
 	  infra)        bash scripts/infra-smoke.sh ;; \
+	  secrets)      bash scripts/check-secrets.sh ;; \
 	  api|app|shared) npm test --workspace $* ;; \
-	  *)            echo "no test target '$*' (try: api, app, shared, ha-broker, e2e, infra)"; exit 2 ;; \
+	  *)            echo "no test target '$*' (try: api, app, shared, ha-broker, e2e, infra, secrets)"; exit 2 ;; \
 	esac
 
 preview:          ## Serve docs/ (SVG diagrams, static previews) on the LAN; open from a laptop/phone
