@@ -9,9 +9,10 @@
     "api"
   ],
   "scripts": {
-    "dev": "concurrently -n app,api -c blue,green \"npm:dev:app\" \"npm:dev:api\"",
+    "dev": "concurrently -n app,api,broker -c blue,green,magenta \"npm:dev:app\" \"npm:dev:api\" \"npm:dev:broker\"",
     "dev:app": "npm run dev --workspace app",
-    "dev:api": "npm run dev --workspace api",
+    "dev:api": "GUEST_DEV=1 BROKER_URL=http://localhost:8081 npm run dev --workspace api",
+    "dev:broker": "GUEST_DEV=1 PORT=8081 npm --prefix ha-broker run dev",
     "build": "npm run build --workspace app",
     "test:e2e": "playwright test"
   },

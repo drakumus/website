@@ -45,20 +45,45 @@ npm run dev        # app + api together (concurrently)
   proxy (`app/vite.config.ts`) targets :8001 accordingly.
 - `GET /api/*` on the app is proxied to the API with the `/api` prefix **stripped**,
   mirroring prod Caddy's `handle_path /api/*` (so `/api/health` → API `/health`).
+- **ha-broker** (Fastify): http://localhost:8081 — the Home Assistant credential broker. Dev
+  runs it with `GUEST_DEV=1`; with no `HA_ADDR`/`HA_TOKEN` it serves **mock** room/light data
+  so the guest dashboard works without a real HA. One-time install (it's a standalone package,
+  not a workspace): `npm install --prefix ha-broker`.
 
 Run them separately if needed:
 
 ```sh
-npm run dev:app    # Vite on :3000
-npm run dev:api    # Fastify on :8001 (tsx watch)
+npm run dev:app       # Vite on :3000
+npm run dev:api       # Fastify on :8001 (tsx watch)
+npm run dev:broker    # ha-broker on :8081 (tsx watch, GUEST_DEV mock)
 ```
+
+### Guest dashboard (Guest Controls)
+
+Served by the **api** at **http://localhost:8001/guest/** (keep the trailing slash) — the same
+page prod serves at `guest.zoci.me`, with two dev conveniences:
+
+- **No OAuth locally.** In prod, Caddy + oauth2-proxy gate the surface behind Google and set
+  `X-Auth-Request-Email`. There's no oauth2-proxy in dev, so `GUEST_DEV=1` (set by the dev
+  scripts) makes the api stand in a stub identity (`dev@localhost`) instead of a 401. **Never
+  set `GUEST_DEV` in the deployed compose** — prod stays hard-gated behind Google.
+- **Mock HA data.** With `GUEST_DEV=1` and no HA configured, ha-broker returns the room/light
+  whitelist with in-memory states and toggles flip in memory. To drive real lights instead,
+  set `HA_ADDR`/`HA_TOKEN` for the broker.
+
+**Shared look — edit once.** Design tokens, the hero title, the gold iron-frame, and entrance
+motion live in `shared/theme.css` (`@zoci/shared/theme.css`): the app imports it, and the api
+inlines it into the guest page at startup. Change visuals **there**, not in `app/src/index.css`
+or `api/src/guest.html`. After editing the frame art (`app/public/frame/*.png`), regenerate its
+inlined data-URIs: `node scripts/gen-frame-css.mjs`.
 
 ## Project layout (npm workspaces)
 
 ```
 app/       # Vite + React + Mantine + motion (TS)   -> web image
-api/       # Fastify (Node/TS), /health in v1        -> api image
-shared/    # zod schemas + shared TS types (@zoci/shared)
+api/       # Fastify (Node/TS) + guest dashboard     -> api image
+ha-broker/ # Fastify HA credential broker (standalone pkg, own lockfile) -> ha-broker image
+shared/    # zod schemas + shared TS types + theme.css (@zoci/shared)
 tests/     # Playwright smoke suite
 infra/     # docker-compose.yml, Caddyfile, vps/     (added in later phases)
 ```
