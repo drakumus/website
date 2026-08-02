@@ -28,7 +28,7 @@ build:            ## Build the web + api images
 	$(COMPOSE) build
 
 deploy: $(GATE) build  ## Gate (tests + typecheck), build, (re)start, then post-deploy smoke
-	$(COMPOSE) up -d
+	$(COMPOSE) up -d --wait --wait-timeout 120
 	bash scripts/infra-smoke.sh
 
 down:             ## Stop the stack
