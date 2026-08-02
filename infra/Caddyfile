@@ -82,19 +82,21 @@ guest.zoci.me:8443 {
 		reverse_proxy localhost:4180
 	}
 	handle {                        # everything else needs an allowlisted Google identity
-		route {                     # explicit order: strip BEFORE forward_auth sets the trusted header
+		route {                     # strip client-set headers BEFORE forward_auth sets the trusted one
 			import strip_auth_headers
+			# 2xx -> copy the identity header and fall through to the api; 401 -> redirect the
+			# browser into the Google flow (per oauth2-proxy's official Caddy integration doc).
 			forward_auth localhost:4180 {
 				uri /oauth2/auth
 				copy_headers X-Auth-Request-Email
+				@error status 401
+				handle_response @error {
+					redir * /oauth2/sign_in?rd={scheme}://{host}{uri}
+				}
 			}
 			rewrite * /guest{uri}   # api guest routes live under /guest/*
 			reverse_proxy localhost:8000
 		}
-	}
-	handle_errors {
-		@unauth expression {http.error.status_code} == 401
-		redir @unauth /oauth2/sign_in?rd={scheme}://{host}{uri}
 	}
 }
 
