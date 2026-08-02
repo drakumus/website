@@ -50,6 +50,17 @@ const ROOMS: { room: string; lights: Light[] }[] = [
 const KEY_TO_ENTITY = new Map<string, string>();
 for (const r of ROOMS) for (const l of r.lights) KEY_TO_ENTITY.set(l.key, l.entity);
 
+// Local-dev mock (GUEST_DEV) so the guest dashboard can be built without a real Home
+// Assistant: an in-memory on/off state per whitelisted key, flipped by /toggle below. Only
+// consulted when HA_ADDR/HA_TOKEN are unset — i.e. never in production. See DEVELOPMENT.md.
+const DEV = !!process.env.GUEST_DEV;
+const devStates = new Map<string, string>();
+if (DEV) {
+  for (const k of KEY_TO_ENTITY.keys()) devStates.set(k, 'off');
+  for (const k of ['gbed', 'gbathv', 'kitchen', 'kitchenisland', 'dining', 'stairsground']) devStates.set(k, 'on');
+  devStates.set('porch', 'unavailable'); // one offline row to exercise that state
+}
+
 async function ha(path: string, init?: RequestInit): Promise<unknown> {
   const res = await fetch(`http://${HA_ADDR}${path}`, {
     ...init,
@@ -57,6 +68,21 @@ async function ha(path: string, init?: RequestInit): Promise<unknown> {
   });
   if (!res.ok) throw new Error(`HA ${path} -> ${res.status}`);
   return res.json();
+}
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+// Verify HA registered a command: re-read the entity until `ok(state)` holds or a short budget
+// elapses, returning the last state seen. We're confirming the target attribute updated (which
+// is near-instant), NOT waiting for the physical device — so this stays quick and reliable.
+async function confirm(entity: string, ok: (state: string) => boolean): Promise<string> {
+  const deadline = Date.now() + 3000;
+  for (;;) {
+    const s = (await ha(`/api/states/${entity}`)) as { state?: string };
+    const state = s.state ?? 'unknown';
+    if (ok(state) || Date.now() >= deadline) return state;
+    await sleep(400);
+  }
 }
 
 // Liveness only — no HA call, so the container is healthy even before HA_TOKEN is set.
@@ -76,7 +102,16 @@ app.get('/ha-check', async (_req, reply) => {
 // The curated guest view: current on/off state of the whitelisted lights, grouped by room.
 // One bulk HA states fetch; nothing outside the whitelist is ever read or returned.
 app.get('/dashboard', async (_req, reply) => {
-  if (!HA_ADDR || !HA_TOKEN) return { configured: false, rooms: [] };
+  if (!HA_ADDR || !HA_TOKEN) {
+    if (!DEV) return { configured: false, rooms: [] };
+    return {
+      configured: true,
+      rooms: ROOMS.map((r) => ({
+        room: r.room,
+        lights: r.lights.map((l) => ({ key: l.key, label: l.label, state: devStates.get(l.key) ?? 'off' })),
+      })),
+    };
+  }
   const states = (await ha('/api/states')) as { entity_id: string; state: string }[];
   const stateOf = new Map(states.map((s) => [s.entity_id, s.state]));
   const rooms = ROOMS.map((r) => ({
@@ -86,18 +121,29 @@ app.get('/dashboard', async (_req, reply) => {
   return { configured: true, rooms };
 });
 
-// Toggle a whitelisted light by opaque key. Rejects anything not in the whitelist; the caller
-// can never supply an entity_id or a different service. HA's service call returns the changed
-// states, so we hand back the new state directly.
-app.post('/toggle', async (req, reply) => {
-  const key = (req.body as { key?: unknown } | undefined)?.key;
-  const entity = typeof key === 'string' ? KEY_TO_ENTITY.get(key) : undefined;
-  if (!entity) return reply.code(400).send({ error: 'unknown light' });
-  await ha('/api/services/light/toggle', { method: 'POST', body: JSON.stringify({ entity_id: entity }) });
-  // Read the settled state back (the service-call response doesn't always include it in time).
-  // The dashboard poll remains the source of truth; this is just for snappy UI feedback.
-  const s = (await ha(`/api/states/${entity}`)) as { state?: string };
-  return { key, state: s.state ?? 'unknown' };
+// Drive a whitelisted control to an EXPLICIT desired state, then verify HA accepted it.
+// Explicit (turn_on/turn_off, not toggle) so the command is idempotent and the result is
+// verifiable. Rejects anything not in the whitelist; the caller never supplies an entity_id or
+// a raw service. Response: { key, state, verified } — `verified` = HA converged to `value`.
+// Generalizes to other control types: branch on the control's domain to pick the service and
+// the verify predicate (e.g. climate.set_temperature + confirm the `temperature` attribute).
+app.post('/command', async (req, reply) => {
+  const body = (req.body ?? {}) as { key?: unknown; value?: unknown };
+  const key = typeof body.key === 'string' ? body.key : '';
+  const entity = KEY_TO_ENTITY.get(key);
+  if (!entity) return reply.code(400).send({ error: 'unknown control' });
+  // Lights accept 'on' | 'off'. (A climate control would validate a number/mode here.)
+  if (body.value !== 'on' && body.value !== 'off') return reply.code(400).send({ error: 'bad value' });
+  const desired = body.value;
+
+  if (DEV && (!HA_ADDR || !HA_TOKEN)) {
+    devStates.set(key, desired);
+    return { key, state: desired, verified: true };
+  }
+
+  await ha(`/api/services/light/turn_${desired}`, { method: 'POST', body: JSON.stringify({ entity_id: entity }) });
+  const state = await confirm(entity, (s) => s === desired);
+  return { key, state, verified: state === desired };
 });
 
 app

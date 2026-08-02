@@ -12,12 +12,23 @@ const PORT = Number(process.env.PORT ?? 8000);
 const HOST = process.env.HOST ?? '0.0.0.0';
 const BROKER_URL = process.env.BROKER_URL ?? 'http://ha-broker:8080';
 
-// The themed guest dashboard page, served at guest.zoci.me. Read once at startup;
-// __EMAIL__ is filled per request. Its JS calls /dashboard + /toggle (same vhost).
-const GUEST_HTML = readFileSync(
-  path.resolve(path.dirname(fileURLToPath(import.meta.url)), 'guest.html'),
-  'utf8',
-);
+// Local-dev escape hatch: in production the guest surface is gated by oauth2-proxy/Google
+// (Caddy sets X-Auth-Request-Email). There's no oauth2-proxy in `npm run dev`, so when
+// GUEST_DEV is set the guest routes fall back to this stub identity instead of 401. NEVER
+// set GUEST_DEV in the deployed compose — prod stays hard-gated. See DEVELOPMENT.md.
+const GUEST_DEV_EMAIL = process.env.GUEST_DEV ? (process.env.GUEST_DEV_EMAIL ?? 'dev@localhost') : '';
+
+// The guest dashboard page, served at guest.zoci.me. Assembled once at startup: the shared
+// theme (@zoci/shared/theme.css) is inlined into the /*__THEME__*/ slot so the page matches
+// the main site without duplicating its CSS. __EMAIL__ is then filled per request.
+const dir = path.dirname(fileURLToPath(import.meta.url));
+const THEME_CSS = readFileSync(path.resolve(dir, '../../shared/theme.css'), 'utf8');
+// Data-path base for the page's fetches. Prod is fronted by Caddy (root -> /guest rewrite),
+// so the browser uses '' ; local dev has no Caddy, so point the page at the /guest mount.
+const GUEST_BASE = GUEST_DEV_EMAIL ? '/guest' : '';
+const GUEST_HTML = readFileSync(path.resolve(dir, 'guest.html'), 'utf8')
+  .replace('/*__THEME__*/', THEME_CSS)
+  .replace('__BASE__', GUEST_BASE);
 
 // Container health is produced out-of-band by a host cron (infra/status/write-status.sh),
 // which writes the names of all running containers to a file. The api reads that file and
@@ -61,7 +72,12 @@ app.get('/status', async (): Promise<SystemStatus> => {
 app.register(
   async (guest) => {
     guest.addHook('preHandler', async (req, reply) => {
-      const email = req.headers['x-auth-request-email'];
+      let email = req.headers['x-auth-request-email'];
+      if ((typeof email !== 'string' || email === '') && GUEST_DEV_EMAIL) {
+        // No oauth2-proxy in local dev — stand in a stub identity so the header-required
+        // routes below (and the '/' page) work. Off unless GUEST_DEV is set.
+        req.headers['x-auth-request-email'] = email = GUEST_DEV_EMAIL;
+      }
       if (typeof email !== 'string' || email === '') {
         return reply.code(401).send({ error: 'unauthenticated' });
       }
@@ -72,10 +88,11 @@ app.register(
       if (!res || !res.ok) return reply.code(502).send({ error: 'broker unavailable' });
       return reply.send(await res.json());
     });
-    // Toggle a whitelisted light — forward the opaque key to the broker (which maps it to
-    // an entity + the fixed light.toggle service). api never sees or sends an entity_id.
-    guest.post('/toggle', async (req, reply) => {
-      const res = await fetch(`${BROKER_URL}/toggle`, {
+    // Drive a whitelisted control to a desired state — forward the opaque {key, value} to the
+    // broker (which maps key→entity, issues the explicit service, and verifies HA accepted it).
+    // api never sees or sends an entity_id; it just relays the broker's {key, state, verified}.
+    guest.post('/command', async (req, reply) => {
+      const res = await fetch(`${BROKER_URL}/command`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(req.body ?? {}),

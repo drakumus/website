@@ -4,12 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="dark">
-<title>zoci · lights</title>
+<title>zoci · controls</title>
+<!-- Shared visual layer (@zoci/shared/theme.css) — tokens, .title-accent, .gold-frame,
+     .rise — inlined here by api/src/server.ts at startup. Single source of truth. -->
+<style>/*__THEME__*/</style>
 <style>
-  :root {
-    --bg: #0e0f12; --panel: rgba(22,23,27,0.92); --gold: rgba(196,160,84,0.28);
-    --gold-text: #c4a054; --text: #ececec; --muted: #9a9a9a; --maroon: #c62828; --hairline: rgba(255,255,255,0.06);
-  }
+  /* Guest-dashboard layout only. Colours/frame/title/motion come from the theme above. */
   * { box-sizing: border-box; }
   html, body { margin: 0; }
   body {
@@ -17,22 +17,37 @@
     font-family: "Open Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif;
     -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
   }
-  .wrap { max-width: 34rem; margin: 0 auto; padding: 2.2rem 1rem calc(4rem + env(safe-area-inset-bottom)); }
-  header { margin-bottom: 1.4rem; }
-  h1 { font-size: clamp(1.8rem, 7vw, 2.6rem); font-weight: 700; margin: 0 0 .2rem; letter-spacing: -0.01em; }
-  h1 .accent { color: var(--maroon); }
-  .sub { color: var(--muted); font-size: .88rem; }
-  .room {
-    background: var(--panel); border: 1px solid var(--gold);
-    box-shadow: 0 10px 30px -16px rgba(0,0,0,0.75);
-    border-radius: 12px; padding: .5rem 1.05rem; margin-bottom: 1rem;
+  body::before {  /* same soft top glow as the site */
+    content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+    background: radial-gradient(1200px 820px at 50% 0%, rgba(255,255,255,0.05), transparent 60%);
   }
-  .room h2 { font-size: .82rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em;
-    color: var(--gold-text); margin: .8rem 0 .3rem; }
-  .light { display: flex; align-items: center; justify-content: space-between; padding: .7rem 0; min-height: 44px; }
+  .wrap { max-width: 84rem; margin: 0 auto; padding: 2.2rem 1.1rem calc(3rem + env(safe-area-inset-bottom)); }
+  header { margin-bottom: 1.6rem; }
+  h1 { font-size: clamp(2rem, 7vw, 3.1rem); font-weight: 700; line-height: 1.1; margin: 0 0 .35rem; letter-spacing: -0.01em; }
+  .sub { color: var(--muted); font-size: .9rem; }
+
+  /* Fixed-ish columns that wrap to fill the width at any size; each card takes the height
+     its content needs (align-items: start — no stretching to the tallest in the row). */
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: 1rem; align-items: start; }
+  .loading { color: var(--muted); font-size: .9rem; }
+
+  .room { padding: .55rem 1.05rem 1rem; box-shadow: 0 10px 30px -16px rgba(0,0,0,0.75); }
+  .room-name { font-size: 1.05rem; font-weight: 700; margin: .55rem .3rem .1rem; letter-spacing: -0.01em; }
+
+  /* A control-type section within a room (Lights today; more types slot in the same way). */
+  .ctl { margin-top: .5rem; }
+  .ctl-label {
+    font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .07em;
+    color: var(--gold-text); margin: 0 .3rem .1rem;
+  }
+
+  .light { display: flex; align-items: center; justify-content: space-between; padding: .6rem .3rem; min-height: 44px; }
   .light + .light { border-top: 1px solid var(--hairline); }
   .light .name { font-size: .98rem; }
+  .light .off { display: none; color: var(--muted); }
   .light.unavail .name { color: var(--muted); }
+  .light.unavail .off { display: inline; }
+
   .sw { position: relative; width: 52px; height: 30px; flex: none; }
   .sw input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
   .track { position: absolute; inset: 0; background: #3a3b40; border-radius: 999px; transition: background .18s ease; pointer-events: none; }
@@ -42,71 +57,159 @@
   .sw input:checked + .track::before { transform: translateX(22px); }
   .sw input:disabled { cursor: default; }
   .sw input:disabled + .track { opacity: .4; }
-  .foot { text-align: center; color: var(--muted); font-size: .8rem; margin-top: 1.2rem; min-height: 1em; }
-  .foot.err { color: #dc3535; }
+
+  /* Per-control verify status. After an input we optimistically flip, then the broker confirms
+     HA accepted it: pending (spinner) -> verified (brief tick) or unconfirmed (amber !). The
+     slot reserves space so nothing shifts when a status appears. */
+  .ctrl { display: flex; align-items: center; gap: .55rem; }
+  .st { width: 16px; height: 16px; flex: none; display: inline-flex; align-items: center; justify-content: center; font-size: .95rem; font-weight: 800; line-height: 1; }
+  .light.pending .sw { opacity: .75; }
+  .light.pending .st::before {
+    content: ""; width: 13px; height: 13px; border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.22); border-top-color: var(--gold-text);
+    animation: spin .7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .light.ok .st { color: #4caf6a; }
+  .light.ok .st::before { content: "\2713"; }        /* ✓ verified, fades out */
+  .light.bad .st { color: #e0a53c; }
+  .light.bad .st::before { content: "!"; }            /* command didn't land */
+  @media (prefers-reduced-motion: reduce) { .light.pending .st::before { animation: none; } }
+
+  /* Connection-trouble indicator — a small exclamation badge at the top, shown ONLY when a
+     poll fails. When healthy there's no chrome: the switches already reflect live state. */
+  .titlerow { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+  .alert {
+    flex: none; width: 30px; height: 30px; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: #ff6b6b; background: rgba(220, 53, 53, 0.14); border: 1px solid rgba(220, 53, 53, 0.7);
+    font-weight: 800; font-size: 1.15rem; line-height: 1; cursor: default;
+    animation: alert-pulse 1.6s ease-in-out infinite;
+  }
+  .alert[hidden] { display: none; }
+  @keyframes alert-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
+  @media (prefers-reduced-motion: reduce) { .alert { animation: none; } }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <header>
-    <h1>Guest <span class="accent">lights</span></h1>
+  <header class="rise">
+    <div class="titlerow">
+      <h1 class="title-accent">Guest Controls</h1>
+      <span class="alert" id="alert" role="status" aria-label="Can't reach the lights — retrying" title="Can't reach the lights — retrying…" hidden>!</span>
+    </div>
     <div class="sub">Signed in as <b>__EMAIL__</b></div>
   </header>
-  <div id="rooms"><div class="foot">Loading…</div></div>
-  <div class="foot" id="foot"></div>
+  <div id="rooms" class="grid"><div class="loading">Loading…</div></div>
 </div>
 <script>
+  // Data path base. In prod the page is served at guest.zoci.me/ and Caddy rewrites root
+  // -> /guest, so BASE is ''. In local dev (no Caddy) the api serves us under /guest/, so
+  // the api injects BASE='/guest'. Either way the fetches below land on the guest routes.
+  const BASE = '__BASE__';
   const roomsEl = document.getElementById('rooms');
-  const footEl = document.getElementById('foot');
-  const busy = new Set();
+  const alertEl = document.getElementById('alert');
+  const pending = new Set();       // keys with a command in flight (awaiting the broker's verify)
+  const POLL = 10000;              // background reconcile interval (ms)
+  let built = false;
 
   function esc(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  function cssq(s){ return String(s).replace(/["\\]/g, '\\$&'); }
+  function isOff(s){ return s === 'unavailable' || s === 'unknown'; }
 
   function lightRow(l){
-    const off = l.state === 'unavailable' || l.state === 'unknown';
-    const on = l.state === 'on';
-    return '<div class="light ' + (off ? 'unavail' : '') + '">' +
-      '<span class="name">' + esc(l.label) + (off ? ' · offline' : '') + '</span>' +
-      '<label class="sw"><input type="checkbox" data-key="' + esc(l.key) + '"' + (on ? ' checked' : '') + (off ? ' disabled' : '') + '><span class="track"></span></label>' +
+    const off = isOff(l.state);
+    return '<div class="light' + (off ? ' unavail' : '') + '">' +
+      '<span class="name">' + esc(l.label) + '<span class="off"> · offline</span></span>' +
+      '<span class="ctrl"><span class="st" aria-hidden="true"></span>' +
+      '<label class="sw"><input type="checkbox" data-key="' + esc(l.key) + '"' + (l.state === 'on' ? ' checked' : '') + (off ? ' disabled' : '') + '><span class="track"></span></label></span>' +
       '</div>';
   }
 
-  function render(rooms){
-    roomsEl.innerHTML = rooms.map(r => '<div class="room"><h2>' + esc(r.room) + '</h2>' + r.lights.map(lightRow).join('') + '</div>').join('');
-    roomsEl.querySelectorAll('input[data-key]').forEach(el => el.addEventListener('change', () => toggle(el.dataset.key, el)));
+  // A room card: name, then one titled section per control type. Only lights exist today,
+  // so there's a single "Lights" section; new control types become sibling sections here.
+  function roomCard(r, i){
+    return '<div class="room gold-frame rise" style="animation-delay:' + Math.min(i * 0.05, 0.4) + 's">' +
+      // The metal gleam that sweeps the trim once on load (masked to the frame art), same as
+      // the portfolio cards. Staggered so the sweep reads as a wave across the grid.
+      '<span class="frame-shimmer" aria-hidden="true" style="animation-delay:' + (0.15 + Math.min(i * 0.06, 0.6)) + 's"></span>' +
+      '<div class="room-name">' + esc(r.room) + '</div>' +
+      '<div class="ctl"><div class="ctl-label">Lights</div><div class="items">' +
+      r.lights.map(lightRow).join('') +
+      '</div></div></div>';
+  }
+
+  function build(rooms){
+    roomsEl.innerHTML = rooms.map(roomCard).join('');
+    roomsEl.querySelectorAll('input[data-key]').forEach(el => el.addEventListener('change', () => command(el.dataset.key, el)));
+    built = true;
+  }
+
+  // Reconcile switch states in place (so the poll doesn't nuke the DOM). Skips controls with a
+  // command in flight; a fresh reading supersedes a stale "unconfirmed" mark. No settle-grace
+  // is needed anymore — a command stays in `pending` until the broker has verified it.
+  function apply(rooms){
+    for (const r of rooms) for (const l of r.lights){
+      const el = roomsEl.querySelector('input[data-key="' + cssq(l.key) + '"]');
+      if (!el){ build(rooms); return; }                 // layout drifted -> full rebuild
+      if (pending.has(l.key)) continue;                 // don't fight an in-flight command
+      const off = isOff(l.state);
+      const row = el.closest('.light');
+      row.classList.remove('bad');                      // reality supersedes a stale warning
+      el.disabled = off;
+      el.checked = l.state === 'on';
+      row.classList.toggle('unavail', off);
+    }
   }
 
   async function load(){
     try {
-      const r = await fetch('/dashboard', { headers: { accept: 'application/json' } });
+      const r = await fetch(BASE + '/dashboard', { headers: { accept: 'application/json' } });
       if (!r.ok) throw new Error(r.status);
-      const d = await r.json();
-      render(d.rooms || []);
-      footEl.textContent = 'Updated ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      footEl.classList.remove('err');
+      const rooms = (await r.json()).rooms || [];
+      built ? apply(rooms) : build(rooms);
+      alertEl.hidden = true;       // healthy — no chrome; the switches show live state
     } catch (e) {
-      footEl.textContent = 'Connection issue — retrying…';
-      footEl.classList.add('err');
+      alertEl.hidden = false;      // poll failed — surface one quiet exclamation up top
     }
   }
 
-  async function toggle(key, el){
-    if (busy.has(key)) return;
-    busy.add(key);
-    const optimistic = el.checked;
+  function setStatus(row, state){  // '' | 'pending' | 'ok' | 'bad'
+    if (!row) return;
+    row.classList.remove('pending', 'ok', 'bad');
+    if (state) row.classList.add(state);
+    if (state === 'ok') setTimeout(() => row.classList.remove('ok'), 1400); // tick fades
+  }
+
+  // The browser already flipped the switch (optimistic). Send the EXPLICIT desired state, show
+  // it pending, then reflect the broker's verify: verified -> brief tick; not verified (or the
+  // request failed) -> snap back to the real state and flag it. The poll clears the flag later.
+  async function command(key, el){
+    if (pending.has(key)) return;
+    pending.add(key);
+    const desired = el.checked ? 'on' : 'off';
+    const row = el.closest('.light');
+    setStatus(row, 'pending');
     try {
-      const r = await fetch('/toggle', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ key }) });
+      const r = await fetch(BASE + '/command', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ key, value: desired }) });
+      if (!r.ok) throw new Error(r.status);
       const d = await r.json();
-      if (d.state === 'on' || d.state === 'off') el.checked = d.state === 'on';
+      if (d.verified) {
+        setStatus(row, 'ok');
+      } else {
+        if (d.state === 'on' || d.state === 'off') el.checked = d.state === 'on'; // show reality
+        setStatus(row, 'bad');
+      }
     } catch (e) {
-      el.checked = !optimistic; // revert
+      el.checked = desired !== 'on'; // revert the optimistic flip
+      setStatus(row, 'bad');
     } finally {
-      busy.delete(key);
+      pending.delete(key);
     }
   }
 
   load();
-  setInterval(() => { if (busy.size === 0) load(); }, 10000);
+  setInterval(() => { if (pending.size === 0) load(); }, POLL);
 </script>
 </body>
 </html>
