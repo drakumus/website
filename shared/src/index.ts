@@ -43,7 +43,7 @@ export const SERVICES = [
 /** Portfolio project (data-driven card + modal). See site spec §3. */
 export const ProjectLink = z.object({
   label: z.string(),
-  href: z.string().url(),
+  href: z.url(),
 });
 export type ProjectLink = z.infer<typeof ProjectLink>;
 
