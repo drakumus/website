@@ -140,9 +140,10 @@
   }
 
   function build(rooms){
+    built = true;
+    if (!rooms.length){ roomsEl.innerHTML = '<div class="loading">No controls available.</div>'; return; }
     roomsEl.innerHTML = rooms.map(roomCard).join('');
     roomsEl.querySelectorAll('input[data-key]').forEach(el => el.addEventListener('change', () => command(el.dataset.key, el)));
-    built = true;
   }
 
   // Reconcile switch states in place (so the poll doesn't nuke the DOM). Skips controls with a
@@ -164,7 +165,7 @@
 
   async function load(){
     try {
-      const r = await fetch(BASE + '/dashboard', { headers: { accept: 'application/json' } });
+      const r = await fetch(BASE + '/dashboard', { headers: { accept: 'application/json' }, signal: AbortSignal.timeout(8000) });
       if (!r.ok) throw new Error(r.status);
       const rooms = (await r.json()).rooms || [];
       built ? apply(rooms) : build(rooms);
@@ -191,13 +192,14 @@
     const row = el.closest('.light');
     setStatus(row, 'pending');
     try {
-      const r = await fetch(BASE + '/command', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ key, value: desired }) });
+      const r = await fetch(BASE + '/command', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ key, value: desired }), signal: AbortSignal.timeout(8000) });
       if (!r.ok) throw new Error(r.status);
       const d = await r.json();
       if (d.verified) {
         setStatus(row, 'ok');
       } else {
-        if (d.state === 'on' || d.state === 'off') el.checked = d.state === 'on'; // show reality
+        // reflect reality if known, else undo the optimistic flip
+        el.checked = (d.state === 'on' || d.state === 'off') ? d.state === 'on' : desired !== 'on';
         setStatus(row, 'bad');
       }
     } catch (e) {

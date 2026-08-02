@@ -108,7 +108,9 @@ app.register(
         /[&<>"']/g,
         (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string,
       );
-      return reply.type('text/html').send(GUEST_HTML.replace('__EMAIL__', safe));
+      // Function replacer: a literal string replacement would interpret $-sequences in the
+      // (attacker-influenceable) email as replacement patterns.
+      return reply.type('text/html').send(GUEST_HTML.replace('__EMAIL__', () => safe));
     });
   },
   { prefix: '/guest' },

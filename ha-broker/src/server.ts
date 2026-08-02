@@ -77,9 +77,15 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 // is near-instant), NOT waiting for the physical device — so this stays quick and reliable.
 async function confirm(entity: string, ok: (state: string) => boolean): Promise<string> {
   const deadline = Date.now() + 3000;
+  let state = 'unknown';
   for (;;) {
-    const s = (await ha(`/api/states/${entity}`)) as { state?: string };
-    const state = s.state ?? 'unknown';
+    try {
+      const s = (await ha(`/api/states/${entity}`)) as { state?: string };
+      state = s.state ?? 'unknown';
+    } catch {
+      // Transient read blip — keep trying until the deadline rather than failing a command
+      // that already went through. The dashboard poll is the source of truth regardless.
+    }
     if (ok(state) || Date.now() >= deadline) return state;
     await sleep(400);
   }
