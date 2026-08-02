@@ -1,4 +1,10 @@
 import Fastify from 'fastify';
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
+
+// True only when this file is the process entry point (prod `node dist/server.js` or
+// `tsx src/server.ts`) — false when imported by a test. Gates listen() + logging below.
+const isEntry = path.resolve(process.argv[1] ?? '') === fileURLToPath(import.meta.url);
 
 // Minimal Home Assistant broker (see ~/specs/complete/secure-access.md §6). This is the ONLY process
 // that holds the HA token. It exposes a narrow, whitelist-only interface to `api` over the
@@ -8,7 +14,7 @@ import Fastify from 'fastify';
 // write path is as locked as the read path — a compromised `api` (or a nosy guest) can do no
 // more than switch the whitelisted lights below.
 
-const app = Fastify({ logger: true });
+const app = Fastify({ logger: isEntry });
 
 const PORT = Number(process.env.PORT ?? 8080);
 const HOST = '0.0.0.0'; // reachable by `api` on the bridge; compose publishes no host port
@@ -47,7 +53,7 @@ const ROOMS: { room: string; lights: Light[] }[] = [
   { room: 'Delivery', lights: [{ key: 'delivery', label: 'Lights', entity: 'light.delivery_lights' }] },
 ];
 
-const KEY_TO_ENTITY = new Map<string, string>();
+export const KEY_TO_ENTITY = new Map<string, string>();
 for (const r of ROOMS) for (const l of r.lights) KEY_TO_ENTITY.set(l.key, l.entity);
 
 // Local-dev mock (GUEST_DEV) so the guest dashboard can be built without a real Home
@@ -152,10 +158,14 @@ app.post('/command', async (req, reply) => {
   return { key, state, verified: state === desired };
 });
 
-app
-  .listen({ port: PORT, host: HOST })
-  .then((addr) => app.log.info(`ha-broker listening on ${addr}`))
-  .catch((err) => {
-    app.log.error(err);
-    process.exit(1);
-  });
+if (isEntry) {
+  app
+    .listen({ port: PORT, host: HOST })
+    .then((addr) => app.log.info(`ha-broker listening on ${addr}`))
+    .catch((err) => {
+      app.log.error(err);
+      process.exit(1);
+    });
+}
+
+export { app };
