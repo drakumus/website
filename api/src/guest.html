@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="dark">
 <title>zoci · controls</title>
-<!-- Shared visual layer (@zoci/shared/theme.css) — tokens, .title-accent, .gold-frame,
-     .rise — inlined here by api/src/server.ts at startup. Single source of truth. -->
+<!-- Shared visual layer (@zoci/shared/theme.css): tokens, .title-accent, .gold-frame,
+     .rise, inlined here by api/src/server.ts at startup. Single source of truth. -->
 <style>/*__THEME__*/</style>
 <style>
   /* Guest-dashboard layout only. Colours/frame/title/motion come from the theme above. */
@@ -27,7 +27,7 @@
   .sub { color: var(--muted); font-size: .9rem; }
 
   /* Fixed-ish columns that wrap to fill the width at any size; each card takes the height
-     its content needs (align-items: start — no stretching to the tallest in the row). */
+     its content needs (align-items: start, no stretching to the tallest in the row). */
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: 1rem; align-items: start; }
   .loading { color: var(--muted); font-size: .9rem; }
 
@@ -76,7 +76,7 @@
   .light.bad .st::before { content: "!"; }            /* command didn't land */
   @media (prefers-reduced-motion: reduce) { .light.pending .st::before { animation: none; } }
 
-  /* Connection-trouble indicator — a small exclamation badge at the top, shown ONLY when a
+  /* Connection-trouble indicator: a small exclamation badge at the top, shown ONLY when a
      poll fails. When healthy there's no chrome: the switches already reflect live state. */
   .titlerow { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
   .alert {
@@ -96,7 +96,7 @@
   <header class="rise">
     <div class="titlerow">
       <h1 class="title-accent">Guest Controls</h1>
-      <span class="alert" id="alert" role="status" aria-label="Can't reach the lights — retrying" title="Can't reach the lights — retrying…" hidden>!</span>
+      <span class="alert" id="alert" role="status" aria-label="Can't reach the lights, retrying" title="Can't reach the lights, retrying…" hidden>!</span>
     </div>
     <div class="sub">Signed in as <b>__EMAIL__</b></div>
   </header>
@@ -148,7 +148,7 @@
 
   // Reconcile switch states in place (so the poll doesn't nuke the DOM). Skips controls with a
   // command in flight; a fresh reading supersedes a stale "unconfirmed" mark. No settle-grace
-  // is needed anymore — a command stays in `pending` until the broker has verified it.
+  // is needed anymore; a command stays in `pending` until the broker has verified it.
   function apply(rooms){
     for (const r of rooms) for (const l of r.lights){
       const el = roomsEl.querySelector('input[data-key="' + cssq(l.key) + '"]');
@@ -169,9 +169,9 @@
       if (!r.ok) throw new Error(r.status);
       const rooms = (await r.json()).rooms || [];
       built ? apply(rooms) : build(rooms);
-      alertEl.hidden = true;       // healthy — no chrome; the switches show live state
+      alertEl.hidden = true;       // healthy: no chrome; the switches show live state
     } catch (e) {
-      alertEl.hidden = false;      // poll failed — surface one quiet exclamation up top
+      alertEl.hidden = false;      // poll failed: surface one quiet exclamation up top
     }
   }
 

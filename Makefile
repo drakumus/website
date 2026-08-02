@@ -63,5 +63,5 @@ test-%:           ## One target: api | app | shared | ha-broker | e2e | infra | 
 
 preview:          ## Serve docs/ (SVG diagrams, static previews) on the LAN; open from a laptop/phone
 	@echo "Preview: http://$$(hostname -I | awk '{print $$1}'):$(PREVIEW_PORT)/  (Ctrl-C to stop)"
-	@echo "Serving ONLY ./docs — never point this at the repo root (gitignored .env/certs live there)."
+	@echo "Serving ONLY ./docs; never point this at the repo root (gitignored .env/certs live there)."
 	python3 -m http.server $(PREVIEW_PORT) --directory docs

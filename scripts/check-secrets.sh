@@ -10,14 +10,14 @@ cd "$(git rev-parse --show-toplevel)"
 
 fail=0
 # Allowlisted (safe): loopback/placeholders/example.com, the universal Tailscale ranges
-# (CGNAT 100.64.0.0/10 + IPv6 ULA fd7a:115c:a1e0::/48) — same for every tailnet, not secrets —
+# (CGNAT 100.64.0.0/10 + IPv6 ULA fd7a:115c:a1e0::/48), same for every tailnet, not secrets,
 # and the RFC 5737 documentation ranges (192.0.2/24, 198.51.100/24, 203.0.113/24), which are
 # reserved and can never be real infra (used as a non-matching default for VPS_TS_IP).
 ALLOW='127\.0\.0\.1|0\.0\.0\.0|::1|example\.com|<[A-Za-z0-9_-]+>|100\.64\.0\.0/10|fd7a:115c:a1e0::/48|192\.0\.2\.[0-9]{1,3}|198\.51\.100\.[0-9]{1,3}|203\.0\.113\.[0-9]{1,3}'
 
 # Skip binary-ish assets and lockfiles: no secrets there, and their numeric blobs
 # (SVG path data, hashes) false-positive on IP-like patterns. BrandIcon.tsx holds inline
-# SVG icon paths (decimal bezier coords) — same false-positive case as *.svg.
+# SVG icon paths (decimal bezier coords), same false-positive case as *.svg.
 EXCLUDES=(':!scripts/check-secrets.sh' ':!*.svg' ':!*.png' ':!*.jpg' ':!*.jpeg'
           ':!*.ico' ':!*.webp' ':!package-lock.json' ':!app/src/components/BrandIcon.tsx')
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# zoci.me VPS ingress setup — OVH VPS (public IP) -> home server over Tailscale.
+# zoci.me VPS ingress setup: OVH VPS (public IP) -> home server over Tailscale.
 #
 # Installs an nginx `stream` (L4) TCP passthrough that forwards :80 and :443 to the
 # home server's tailnet IP WITHOUT terminating TLS. The home Caddy terminates and
@@ -13,7 +13,7 @@
 # and the home box is reachable at HOME_TS_IP over the tailnet.
 set -euo pipefail
 
-# Home server tailnet IPv4 — pass via env (do not hardcode infra addresses in the repo).
+# Home server tailnet IPv4: pass via env (do not hardcode infra addresses in the repo).
 HOME_TS_IP="${HOME_TS_IP:?set HOME_TS_IP to the home server's tailnet IPv4}"
 
 echo ">> Forwarding :80 and :443 -> ${HOME_TS_IP}"
@@ -63,4 +63,4 @@ nginx -t
 systemctl enable nginx
 systemctl restart nginx
 echo ">> Done. nginx is forwarding :80/:443 -> ${HOME_TS_IP}"
-echo ">> Until the home Caddy is up (Phase 4), forwarded connections will refuse — that's expected."
+echo ">> Until the home Caddy is up (Phase 4), forwarded connections will refuse, as expected."

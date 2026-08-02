@@ -11,17 +11,17 @@ html {
 }
 /*
  * Dark stone background. One self-contained SVG tile: a base color plus two blended
- * fractal-noise layers — a fine grain (high frequency, 4 octaves) for a small, subtle
+ * fractal-noise layers: a fine grain (high frequency, 4 octaves) for a small, subtle
  * stone texture, and a faint low-frequency layer that gently breaks up uniformity.
  * It's a static background-image (not a live CSS filter), so the browser rasterizes it
- * ONCE and tiles it — no runtime cost. A faint white glow sits on top.
+ * ONCE and tiles it, no runtime cost. A faint white glow sits on top.
  * Technique: feTurbulence granite (tympanus.net/codrops).
  */
 body {
   margin: 0;
   min-height: 100dvh;
   background-color: #131417;
-  /* Stone tile scrolls with the content. No background-attachment: fixed — that forces
+  /* Stone tile scrolls with the content. No background-attachment: fixed, which forces
      a full-viewport repaint on every scroll frame, which starves anything animating
      during the scroll (the portfolio cards' entrance stutter came from here). */
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Cdefs%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' seed='7' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Cfilter id='d'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.3' numOctaves='3' seed='11' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3C/defs%3E%3Crect width='400' height='400' fill='%23131417'/%3E%3Crect width='400' height='400' filter='url(%23d)' opacity='0.12' style='mix-blend-mode:soft-light'/%3E%3Crect width='400' height='400' filter='url(%23g)' opacity='0.3' style='mix-blend-mode:overlay'/%3E%3C/svg%3E");
@@ -31,7 +31,7 @@ body {
 
 /*
  * Soft top glow, on its own fixed GPU-composited layer. A fixed gradient element is
- * rasterized once and merely re-composited as you scroll — unlike
+ * rasterized once and merely re-composited on scroll, unlike
  * background-attachment: fixed it never repaints, so scrolling (and cards animating in
  * mid-scroll) stays smooth. Sits behind content via z-index -1.
  */
@@ -51,11 +51,11 @@ a {
 /*
  * The hero title (.title-accent), the gold iron-frame (.gold-frame / .frame-shimmer), the
  * shimmer-sweep keyframes, entrance motion (.rise), and the design tokens all live in the
- * shared layer — @zoci/shared/theme.css, imported in main.tsx. App-only rules stay below.
+ * shared layer: @zoci/shared/theme.css, imported in main.tsx. App-only rules stay below.
  */
 
 /*
- * Hover glow — soft red inner + outer. Painted on a dedicated ::before layer and
+ * Hover glow: soft red inner + outer. Painted on a dedicated ::before layer and
  * revealed by transitioning OPACITY only (compositor-composited, no per-frame
  * repaint), so the pixelated frame overlay and card thumbnail don't re-rasterize
  * on hover. z-index 2 sits above card content, below the gold frame (::after = 3).
@@ -75,7 +75,7 @@ a {
   transition: opacity 200ms ease;
 }
 /*
- * Hover: the glow blooms IN — a longer, ease-out ramp so it swells up gently and
+ * Hover: the glow blooms IN, a longer ease-out ramp so it swells up gently and
  * settles, rather than snapping on. Opacity-only, so it stays on the compositor.
  */
 .destination-card:hover::before,
@@ -84,7 +84,7 @@ a {
   transition: opacity 420ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* Home link: modern hover — a soft pill plus the arrow slides left, no underline. */
+/* Home link: modern hover, a soft pill plus the arrow slides left, no underline. */
 .home-link {
   padding: 4px 10px;
   border-radius: 8px;
@@ -103,7 +103,7 @@ a {
 }
 
 /*
- * Project-modal title — a proper standout heading rather than default label text:
+ * Project-modal title: a proper standout heading rather than default label text:
  * larger, heavier, crisp white with a hair of letter-spacing. Pairs with the
  * gold-trim divider under the modal header.
  */

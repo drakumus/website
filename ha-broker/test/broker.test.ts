@@ -2,7 +2,7 @@
 // token-isolation boundary that used to live only in prose: the caller sends an opaque `key`,
 // never an entity_id or a service, and nothing outside the whitelist is ever driven or leaked.
 //
-// Run: `npm test` (node --test via tsx). No real Home Assistant — `fetch` is stubbed.
+// Run: `npm test` (node --test via tsx). No real Home Assistant; `fetch` is stubbed.
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 

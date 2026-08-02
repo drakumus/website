@@ -3,7 +3,7 @@
 # it answers each with the home tailnet IP. It only ever receives these names, so it needs
 # no upstream/forwarding. Env vars are substituted by CoreDNS at parse time ({$VAR}).
 #
-# `bind` restricts the listener to the tailnet IP only — never 0.0.0.0 — so :53 isn't
+# `bind` restricts the listener to the tailnet IP only, never 0.0.0.0, so :53 isn't
 # exposed on the LAN and doesn't collide with the host's systemd-resolved stub listener.
 admin.zoci.me ha.zoci.me finance.zoci.me {
     bind {$HOME_TS_IP}

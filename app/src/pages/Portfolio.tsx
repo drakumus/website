@@ -155,7 +155,7 @@ export default function Portfolio() {
             transition={{ duration: 0.4, delay: (i % 3) * 0.05 }}
           >
             {/* The card stays put; its CONTENTS react on hover. This wrapper is a
-                Motion variant orchestrator — hovering flips it to "hover", which
+                Motion variant orchestrator: hovering flips it to "hover", which
                 propagates to the children below (the thumbnail zooms, the title
                 nudges). Pairs with the CSS glow bloom on .project-card. */}
             <motion.div
@@ -223,7 +223,7 @@ export default function Portfolio() {
         ))}
       </SimpleGrid>
 
-      {/* Socials — brand icons set in an OSRS bank tab */}
+      {/* Socials: brand icons set in an OSRS bank tab */}
       <motion.div
         initial={{ opacity: 0, y: 16 }}
         whileInView={{ opacity: 1, y: 0 }}

@@ -1,25 +1,25 @@
 # Architecture
 
 High-level map of how zoci.me fits together. This is a **pointer document**: it explains the
-shape and the *why*, and points at the code that holds the detail — it does not restate logic
+shape and the *why*, and points at the code that holds the detail; it does not restate logic
 that lives in the files. Start here, then read the referenced source.
 
 ![zoci.me architecture](docs/architecture.svg)
 
 Companion docs:
-- [`README.md`](README.md) — what the site is, the stack, the layout.
-- [`DEVELOPMENT.md`](DEVELOPMENT.md) — local dev loop, the guest-dashboard dev bypass, build,
+- [`README.md`](README.md): what the site is, the stack, the layout.
+- [`DEVELOPMENT.md`](DEVELOPMENT.md): local dev loop, the guest-dashboard dev bypass, build,
   verification (Playwright), secret hygiene, deploy.
-- Design history (local, not in the repo): `~/specs/complete/` — `secure-access.md` is the
-  authoritative network + security design; `zoci-networking.md`, `zoci-website-relaunch.md`,
-  and the implementation plans record how we got here.
+- Design history (local, not in the repo): `~/specs/complete/`, where `secure-access.md` is the
+  authoritative network and security design, alongside `zoci-networking.md`,
+  `zoci-website-relaunch.md`, and the implementation plans.
 
 > **Deploy model:** this home server *is* production. `make deploy` builds from the local
 > working tree (not git) and recreates the stack. See [`Makefile`](Makefile) and
 > [`DEVELOPMENT.md`](DEVELOPMENT.md).
 
 > **Secret hygiene:** the repo is public. Real IPs, the tailnet name, the VPS host, and emails
-> never land in tracked files — they live in gitignored `infra/.env`, `infra/certs/`,
+> never land in tracked files; they live in gitignored `infra/.env`, `infra/certs/`,
 > `infra/oauth2-proxy/emails.txt`, and local `PROJECT_STATUS.md`. Enforced by
 > [`scripts/check-secrets.sh`](scripts/check-secrets.sh) (`make check-secrets`).
 
@@ -31,24 +31,24 @@ Companion docs:
 |---|---|---|---|
 | **Public** | `zoci.me`, `js1.zoci.me` | anyone | none |
 | **Guest** | `guest.zoci.me` | allowlisted Google accounts | oauth2-proxy (Google OIDC) |
-| **Private** | `admin`/`ha`/`finance.zoci.me` | you, on the tailnet | Tailscale network + L7 backstop |
+| **Private** | `admin`/`ha`/`finance.zoci.me` | admin, on the tailnet | Tailscale network + L7 backstop |
 
 The whole design turns on a **port split**: public vhosts listen on `:8443`, private vhosts on
 `:443`. The public VPS can only reach `:8443`; it is structurally blocked from `:443`, so the
 private surface is unreachable from the internet even if a vhost were misconfigured. This is
 enforced by the Tailscale grant, not a fragile denylist. Rationale in `~/specs/complete/secure-access.md` §7.
 
-Each actor's path and the boundaries it crosses:
+Each actor path and the boundaries it crosses:
 
-**Public** — anyone, no login:
+**Public** (anyone, no login):
 
 ![public visitor path](docs/path-public.svg)
 
-**Guest** — an allowlisted Google account (curated Home Assistant control):
+**Guest** (an allowlisted Google account, curated Home Assistant control):
 
 ![guest path](docs/path-guest.svg)
 
-**Admin (you)** — only from your own tailnet devices:
+**Admin** (only from tailnet devices):
 
 ![admin path](docs/path-admin.svg)
 
@@ -69,21 +69,21 @@ home server (this box)
   └─ :443   private vhosts (VPS is ACL-blocked from this port)
 ```
 
-- **VPS forwarder** — [`infra/vps/setup.sh`](infra/vps/setup.sh) + [`infra/vps/README.md`](infra/vps/README.md).
+- **VPS forwarder**: [`infra/vps/setup.sh`](infra/vps/setup.sh) + [`infra/vps/README.md`](infra/vps/README.md).
   It is a dumb TCP passthrough (nginx `stream`), so the VPS holds no keys and sees no plaintext;
-  home sees the VPS's constant tailnet IP as the source. Verified live: `:443 → home:8443`,
+  home sees the constant VPS tailnet IP as the source. Verified live: `:443 → home:8443`,
   `:80 → home:80`.
-- **Caddy** — [`infra/Caddyfile`](infra/Caddyfile). `auto_https off`; every vhost loads the
+- **Caddy**: [`infra/Caddyfile`](infra/Caddyfile). `auto_https off`; every vhost loads the
   wildcard cert via the `(wildcard_tls)` snippet. The `(strip_auth_headers)` snippet drops any
   client-supplied `X-Auth-Request-*` on every internet-facing vhost so the shared `api` can't be
   spoofed; the `(tailnet_guard)` snippet is the fail-closed L7 backstop on private vhosts.
 
 TLS certificates are wildcard (`zoci.me` + `*.zoci.me`), issued out-of-band via **DNS-01** (no
-inbound ACME through the passthrough) — [`infra/acme/issue.sh`](infra/acme/issue.sh); Caddy just
+inbound ACME through the passthrough) in [`infra/acme/issue.sh`](infra/acme/issue.sh); Caddy just
 loads the files from `infra/certs/` (gitignored).
 
-Split-DNS for the private names resolves only on the tailnet via CoreDNS —
-[`infra/coredns/Corefile`](infra/coredns/Corefile).
+Split-DNS for the private names resolves only on the tailnet via CoreDNS
+([`infra/coredns/Corefile`](infra/coredns/Corefile)).
 
 ---
 
@@ -110,17 +110,17 @@ Two internet-facing containers (`api`, `web`) hold **no** secrets and have **no*
 
 ## 4. The public site
 
-React + Vite + Mantine SPA — [`app/`](app). Pages in [`app/src/pages/`](app/src/pages)
+React + Vite + Mantine SPA in [`app/`](app). Pages in [`app/src/pages/`](app/src/pages)
 (`Landing`, `Portfolio`). Container-health for the landing dashboard comes from a host cron that
 writes running-container names to a file ([`infra/status/write-status.sh`](infra/status/write-status.sh));
 the `api` reads that file and maps it against the canonical service list in
-[`shared/src/index.ts`](shared/src/index.ts) — so the internet-facing `api` never talks to Docker.
+[`shared/src/index.ts`](shared/src/index.ts), so the internet-facing `api` never talks to Docker.
 The public API routes (`/health`, `/status`) are in [`api/src/server.ts`](api/src/server.ts).
 
 ## 5. Shared visual layer
 
-One source of truth for the site's look — tokens, the hero-title treatment, the gold iron-frame,
-and entrance motion — in [`shared/theme.css`](shared/theme.css). The app imports it
+One source of truth for the look (tokens, the hero-title treatment, the gold iron-frame, and
+entrance motion) in [`shared/theme.css`](shared/theme.css). The app imports it
 ([`app/src/main.tsx`](app/src/main.tsx)); the guest dashboard **inlines** it at startup so the
 two surfaces match without duplication. Frame art is embedded as data-URIs, regenerated from the
 source PNGs by [`scripts/gen-frame-css.mjs`](scripts/gen-frame-css.mjs).
@@ -145,8 +145,8 @@ requires the trusted header. `api` relays only an **opaque `{key, value}`** to `
 token. The broker maps `key → entity` against a **whitelist**, so a compromised `api` (or a nosy
 guest) can never name an arbitrary entity or service.
 
-**Optimistic command + verify** — the interaction model (details in
-[`api/src/guest.html`](api/src/guest.html) and the broker's `/command` + `confirm()`):
+**Optimistic command + verify** (the interaction model; details in
+[`api/src/guest.html`](api/src/guest.html) and the broker `/command` + `confirm()`):
 
 ```
 tap → optimistic flip → POST /command {key, value}   (explicit desired state)
@@ -157,28 +157,28 @@ tap → optimistic flip → POST /command {key, value}   (explicit desired state
 
 Explicit desired-state commands (not a relative toggle) make the write **idempotent** and the
 result **verifiable**. This generalizes to future control types (e.g. AC setpoint/mode): add a
-control type, branch on its domain for the service + verify predicate — the broker whitelist,
-the section-per-control-type layout, and the command→verify flow are already the rails.
-Design notes in `~/specs/complete/secure-access.md` §6–7.
+control type, branch on its domain for the service and verify predicate. The broker whitelist,
+the section-per-control-type layout, and the command-to-verify flow are already the rails.
+Design notes in `~/specs/complete/secure-access.md` §6-7.
 
 **Local dev** runs this whole surface without oauth2-proxy via `GUEST_DEV` (stub identity +
-mock HA in the broker) — see [`DEVELOPMENT.md`](DEVELOPMENT.md).
+mock HA in the broker); see [`DEVELOPMENT.md`](DEVELOPMENT.md).
 
 ---
 
 ## 7. Security posture (summary)
 
-Depth, not a single wall — full treatment in `~/specs/complete/secure-access.md`:
+Depth, not a single wall; full treatment in `~/specs/complete/secure-access.md`:
 
-- **Network boundary** — public VPS reaches only `:8443`; `:443` (private vhosts) is
+- **Network boundary**: public VPS reaches only `:8443`; `:443` (private vhosts) is
   Tailscale-ACL-blocked. The port split is the real boundary; `(tailnet_guard)` in the Caddyfile
   is a fail-closed backstop.
-- **Header trust** — `(strip_auth_headers)` removes client `X-Auth-Request-*` before Caddy sets
+- **Header trust**: `(strip_auth_headers)` removes client `X-Auth-Request-*` before Caddy sets
   the trusted copy on the guest vhost only.
-- **Token isolation** — HA token lives solely in `ha-broker` (private bridge, no host port,
+- **Token isolation**: HA token lives solely in `ha-broker` (private bridge, no host port,
   `read_only`, `no-new-privileges`); guests reach it only through the `api` relay + whitelist.
-- **Blast radius** — internet-facing `api`/`web` hold no secrets and no Docker socket.
-- **Secret hygiene** — gitignored `infra/.env`, `infra/certs/`, `infra/oauth2-proxy/emails.txt`;
+- **Blast radius**: internet-facing `api`/`web` hold no secrets and no Docker socket.
+- **Secret hygiene**: gitignored `infra/.env`, `infra/certs/`, `infra/oauth2-proxy/emails.txt`;
   `make check-secrets` gates against leaks.
 
 ---
@@ -188,4 +188,4 @@ Depth, not a single wall — full treatment in `~/specs/complete/secure-access.m
 See [`DEVELOPMENT.md`](DEVELOPMENT.md) for the full loop. In brief: `npm run dev` runs
 app + api + ha-broker (with the guest dev bypass); `make deploy` builds from the working tree and
 recreates the stack. Editing [`infra/Caddyfile`](infra/Caddyfile) requires `docker restart caddy`
-(a single-file bind mount pins the old inode — a bare `caddy reload` reloads stale config).
+(a single-file bind mount pins the old inode, so a bare `caddy reload` serves stale config).

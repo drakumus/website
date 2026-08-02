@@ -2,9 +2,9 @@
 #
 # Issue/renew the zoci.me + *.zoci.me wildcard cert via Let's Encrypt DNS-01 (DigitalOcean),
 # for stock Caddy to load from a file (see ~/specs/complete/secure-access.md §5). acme.sh runs on the
-# HOST — the DNS API token never enters the repo or a container.
+# HOST: the DNS API token never enters the repo or a container.
 #
-#   infra/acme/issue.sh staging   # LE staging dry-run (untrusted cert, no rate limits) — verify only
+#   infra/acme/issue.sh staging   # LE staging dry-run (untrusted cert, no rate limits), verify only
 #   infra/acme/issue.sh           # real LE cert + install into infra/certs/
 #
 # acme.sh's own cron handles renewals; the token is read from $DO_TOKEN_FILE (default
@@ -43,7 +43,7 @@ if [ "$MODE" = prod ]; then
           --key-file       "$CERT_DIR/zoci.me.key" \
           --fullchain-file "$CERT_DIR/zoci.me.crt" \
           --reloadcmd "docker exec caddy caddy reload --config /etc/caddy/Caddyfile || true"
-  echo ">> done — cert at $CERT_DIR/zoci.me.crt (renewals run via acme.sh's own cron)"
+  echo ">> done: cert at $CERT_DIR/zoci.me.crt (renewals run via acme.sh's own cron)"
 else
   echo ">> staging OK: DNS-01 works end to end. Re-run without 'staging' for the real cert."
 fi

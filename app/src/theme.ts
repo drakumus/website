@@ -9,7 +9,7 @@ export const panelStyle: CSSProperties = {
   boxShadow: '0 10px 30px -16px rgba(0, 0, 0, 0.75)',
 };
 
-// Maroon / red — the interactive accent (links, buttons, badges, icons, hero name).
+// Maroon / red: the interactive accent (links, buttons, badges, icons, hero name).
 // White (headings/body) and the gold border trim carry the rest; the base stays
 // neutral black/dark-gray so red reads as an accent, not the whole theme.
 const maroon: MantineColorsTuple = [

@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 /**
  * Shared contracts imported by BOTH the SPA (`@zoci/app`) and the API (`@zoci/api`).
- * A change here is a compile error on both ends — no codegen. Keep this the single
+ * A change here is a compile error on both ends, no codegen. Keep this the single
  * source of truth for cross-boundary types.
  */
 
@@ -12,7 +12,7 @@ export const HealthResponse = z.object({
 });
 export type HealthResponse = z.infer<typeof HealthResponse>;
 
-/** GET /api/status — home-server container health for the landing dashboard. */
+/** GET /api/status: home-server container health for the landing dashboard. */
 export const ContainerStatus = z.object({
   name: z.string(),
   running: z.boolean(),
@@ -28,7 +28,7 @@ export type SystemStatus = z.infer<typeof SystemStatus>;
 
 /**
  * Canonical home-server services for the landing dashboard: display name + the exact
- * Docker container name to match. Single source of truth — the api maps the cron's list
+ * Docker container name to match. Single source of truth: the api maps the cron list
  * of running containers against this, and the frontend uses the names as placeholders.
  * (Compose project name is `infra`, hence the `infra-<svc>-1` container names.)
  */

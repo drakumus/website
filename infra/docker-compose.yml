@@ -1,6 +1,6 @@
 # Bound container logs on every service (json-file, 3 × 10 MB max, ~30 MB ceiling each).
-# Docker's default json-file driver has no rotation, so a chatty service — e.g. the guest
-# dashboard's 10s poll through api + ha-broker + oauth2-proxy — would otherwise grow logs
+# Docker's default json-file driver has no rotation, so a chatty service (e.g. the guest
+# dashboard's 10s poll through api + ha-broker + oauth2-proxy) would otherwise grow logs
 # unbounded on the SSD. Referenced as `logging: *default-logging` on each service below.
 x-logging: &default-logging
   driver: json-file
@@ -88,7 +88,7 @@ services:
   coredns:
     # Split-DNS resolver for the tailnet-only names (secure-access.md §4). host networking
     # so it can bind the tailnet IP directly on :53. Needs HOME_TS_IP set in infra/.env
-    # before deploy (an empty value makes CoreDNS fail to bind — it won't affect the other
+    # before deploy (an empty value makes CoreDNS fail to bind; it won't affect the other
     # services, but the container will restart-loop until HOME_TS_IP is set).
     image: coredns/coredns:1.14.6@sha256:900f9c109f7a33545d3c811516e8376df9019147b750f5ce3e254468769176ea
     network_mode: host
@@ -102,7 +102,7 @@ services:
 
   ha-broker:
     # Minimal HA credential holder (secure-access.md §6). Standalone package; the ONLY
-    # process that holds HA_TOKEN. No host port — reachable only by `api` on the internal
+    # process that holds HA_TOKEN. No host port, reachable only by `api` on the internal
     # bridge. Needs HA_ADDR + HA_TOKEN in infra/.env to serve /dashboard (until then /health
     # is up and /dashboard reports unconfigured).
     build:
@@ -133,8 +133,8 @@ services:
     # it. Egress to Google is via the default bridge (not on the broker network). Distroless
     # image → no in-container healthcheck; verify via the host /ping.
     # Pinned by digest (v7.15.3). Upgraded from v7.7.1, which predated fixes for the
-    # skip-auth-route and X-Forwarded-Uri auth-bypass classes (not exploitable here — no
-    # skip-auth routes configured — but this is the sole identity gate, so keep it current).
+    # skip-auth-route and X-Forwarded-Uri auth-bypass classes (not exploitable here, since no
+    # skip-auth routes are configured, but this is the sole identity gate, so keep it current).
     image: quay.io/oauth2-proxy/oauth2-proxy:v7.15.3@sha256:10a1165743a192e1940b4708fb9647027185ce11a681a1c5519b442ff7f1f561
     restart: unless-stopped
     logging: *default-logging

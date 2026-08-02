@@ -1,6 +1,6 @@
 import { motion, useReducedMotion } from 'motion/react';
 
-// Ambient background: one consistent, even glow from the top — no offset hotspots.
+// Ambient background: one consistent, even glow from the top, no offset hotspots.
 // Gently breathes opacity (cheap; no layout/paint of blur). Matches the top-glow
 // gradient on the rest of the site so the landing reads consistent. Disabled under
 // prefers-reduced-motion.

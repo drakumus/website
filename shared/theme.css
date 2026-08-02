@@ -1,14 +1,14 @@
 /*
- * Shared visual layer for zoci.me — the SINGLE source of truth for the site's look.
+ * Shared visual layer for zoci.me: the SINGLE source of truth for the look.
  * Consumed by both surfaces so nothing is hand-duplicated:
  *   - the Vite app imports it in app/src/main.tsx (Vite bundles it), and
  *   - api/src/server.ts inlines it into the standalone guest dashboard at startup.
  * Edit design tokens, the hero-title treatment, the gold iron-frame, and entrance
- * motion HERE — not in app/src/index.css or api/src/guest.html.
+ * motion HERE, not in app/src/index.css or api/src/guest.html.
  */
 
 :root {
-  /* Palette — mirrors the Mantine maroon in app/src/theme.ts plus the panel/gold trim. */
+  /* Palette: mirrors the Mantine maroon in app/src/theme.ts plus the panel/gold trim. */
   --bg: #131417;
   --panel: #16171a;
   --text: #ececec;
@@ -32,7 +32,7 @@
 }
 
 /*
- * Hero title — transparent glyphs with a crisp white outline (paint-order keeps the stroke
+ * Hero title: transparent glyphs with a crisp white outline (paint-order keeps the stroke
  * outside the fill) and a one-shot light band that sweeps across on load.
  */
 .title-accent {
@@ -107,7 +107,7 @@
 }
 
 /*
- * Entrance motion — a gentle fade + rise. The app drives the same feel with motion/react on
+ * Entrance motion: a gentle fade + rise. The app drives the same feel with motion/react on
  * the portfolio; the guest dashboard (no React) uses this CSS utility, staggering cards via
  * an inline animation-delay.
  */

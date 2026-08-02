@@ -2,7 +2,7 @@
 # Writes the names of all running Docker containers to a JSON file for the landing
 # dashboard. Run by cron on the home server (the box with Docker access) so the api
 # container never needs the Docker socket. The api (api/src/server.ts) maps this list
-# against the canonical service list (@zoci/shared SERVICES) — this script keeps no list
+# against the canonical service list (@zoci/shared SERVICES); this script keeps no list
 # of its own. See also infra/docker-compose.yml (api mounts ./status read-only).
 set -euo pipefail
 

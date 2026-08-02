@@ -6,7 +6,7 @@ import path from 'node:path';
 import { HealthResponse, SystemStatus, SERVICES } from '@zoci/shared';
 
 // True only when this file is the process entry point (prod `node dist/server.js` or
-// `tsx src/server.ts`) — false when imported by a test. Gates listen() + logging below,
+// `tsx src/server.ts`), false when imported by a test. Gates listen() + logging below,
 // so a test can import { app } and use fastify.inject() without binding a port.
 const isEntry = path.resolve(process.argv[1] ?? '') === fileURLToPath(import.meta.url);
 
@@ -20,7 +20,7 @@ const BROKER_URL = process.env.BROKER_URL ?? 'http://ha-broker:8080';
 // Local-dev escape hatch: in production the guest surface is gated by oauth2-proxy/Google
 // (Caddy sets X-Auth-Request-Email). There's no oauth2-proxy in `npm run dev`, so when
 // GUEST_DEV is set the guest routes fall back to this stub identity instead of 401. NEVER
-// set GUEST_DEV in the deployed compose — prod stays hard-gated. See DEVELOPMENT.md.
+// set GUEST_DEV in the deployed compose; prod stays hard-gated. See DEVELOPMENT.md.
 const GUEST_DEV_EMAIL = process.env.GUEST_DEV ? (process.env.GUEST_DEV_EMAIL ?? 'dev@localhost') : '';
 
 // The guest dashboard page, served at guest.zoci.me. Assembled once at startup: the shared
@@ -37,7 +37,7 @@ const GUEST_HTML = readFileSync(path.resolve(dir, 'guest.html'), 'utf8')
 
 // Container health is produced out-of-band by a host cron (infra/status/write-status.sh),
 // which writes the names of all running containers to a file. The api reads that file and
-// maps it against the canonical SERVICES list — it never talks to Docker, so the
+// maps it against the canonical SERVICES list; it never talks to Docker, so the
 // internet-facing container needs no Docker socket. Prod sets STATUS_FILE via compose; the
 // dev default points at the in-repo file.
 const STATUS_FILE =
@@ -72,14 +72,14 @@ app.get('/status', async (): Promise<SystemStatus> => {
 
 // Guest surface (secure-access.md §7.2). Reached ONLY via guest.zoci.me, where Caddy's
 // forward_auth (oauth2-proxy → Google) sets X-Auth-Request-Email and strips any client-sent
-// copy. We hard-require that header — a request lacking it (e.g. the public zoci.me/api/*
+// copy. This route hard-requires that header; a request lacking it (e.g. the public zoci.me/api/*
 // path, where Caddy strips it) is refused. The HA token lives in ha-broker, never here.
 app.register(
   async (guest) => {
     guest.addHook('preHandler', async (req, reply) => {
       let email = req.headers['x-auth-request-email'];
       if ((typeof email !== 'string' || email === '') && GUEST_DEV_EMAIL) {
-        // No oauth2-proxy in local dev — stand in a stub identity so the header-required
+        // No oauth2-proxy in local dev: stand in a stub identity so the header-required
         // routes below (and the '/' page) work. Off unless GUEST_DEV is set.
         req.headers['x-auth-request-email'] = email = GUEST_DEV_EMAIL;
       }
@@ -87,13 +87,13 @@ app.register(
         return reply.code(401).send({ error: 'unauthenticated' });
       }
     });
-    // Curated dashboard data — proxied from ha-broker (which holds the HA token).
+    // Curated dashboard data, proxied from ha-broker (which holds the HA token).
     guest.get('/dashboard', async (_req, reply) => {
       const res = await fetch(`${BROKER_URL}/dashboard`).catch(() => null);
       if (!res || !res.ok) return reply.code(502).send({ error: 'broker unavailable' });
       return reply.send(await res.json());
     });
-    // Drive a whitelisted control to a desired state — forward the opaque {key, value} to the
+    // Drive a whitelisted control to a desired state: forward the opaque {key, value} to the
     // broker (which maps key→entity, issues the explicit service, and verifies HA accepted it).
     // api never sees or sends an entity_id; it just relays the broker's {key, state, verified}.
     guest.post('/command', async (req, reply) => {
@@ -106,7 +106,7 @@ app.register(
       return reply.code(res.status).send(await res.json());
     });
     // The themed guest dashboard page (per-room light controls). Its JS pulls /dashboard
-    // and posts /command — both on this same vhost, so they land back on these guest routes.
+    // and posts /command, both on this same vhost, so they land back on these guest routes.
     guest.get('/', async (req, reply) => {
       const email = String(req.headers['x-auth-request-email'] ?? '');
       const safe = email.replace(

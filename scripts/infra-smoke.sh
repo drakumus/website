@@ -34,7 +34,7 @@ unhealthy=$($COMPOSE ps --format '{{.Name}} {{.State}} {{.Health}}' 2>/dev/null 
   | awk '$2 != "running" || ($3 != "" && $3 != "healthy") { print "     " $0 }')
 [ -z "$unhealthy" ] && ok "containers running/healthy" || { bad "containers not healthy:"; echo "$unhealthy"; }
 
-# 3) public guest path redirects to Google sign-in — the auth gate is up (see infra/CLAUDE.md).
+# 3) public guest path redirects to Google sign-in; the auth gate is up (see infra/CLAUDE.md).
 loc=$(curl -sI -k --max-time 5 --resolve guest.zoci.me:8443:127.0.0.1 https://guest.zoci.me:8443/ \
   | tr -d '\r' | awk 'tolower($1) == "location:" { print $2 }')
 case "$loc" in

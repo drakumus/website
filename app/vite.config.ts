@@ -11,7 +11,7 @@ export default defineConfig({
   plugins: [react()],
   server: {
     // Bind all interfaces: this box is headless, so dev is previewed from other LAN
-    // devices (e.g. http://<your-lan-ip>:3000). LAN-only — never internet-facing.
+    // devices (e.g. http://<lan-ip>:3000). LAN-only, never internet-facing.
     host: true,
     port: 3000,
     proxy: {

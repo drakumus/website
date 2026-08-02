@@ -25,7 +25,7 @@
 	tls /certs/zoci.me.crt /certs/zoci.me.key
 }
 
-# Drop any client-supplied X-Auth-Request-* — the trusted copy is set ONLY by forward_auth on
+# Drop any client-supplied X-Auth-Request-*; the trusted copy is set ONLY by forward_auth on
 # guest (§7.2). Imported by every internet-facing vhost so the shared `api` can't be spoofed.
 (strip_auth_headers) {
 	request_header -X-Auth-Request-Email
@@ -37,7 +37,7 @@
 
 # Fail-closed backstop for private vhosts (§7.1): 404 anything not from the tailnet, AND the
 # VPS itself. The VPS is a tailnet peer (so it's inside 100.64.0.0/10), and the Tailscale ACL
-# blocking VPS->:443 is the real boundary — but that ACL is invisible here, so this backstop
+# blocking VPS->:443 is the real boundary, but that ACL is invisible here, so this backstop
 # now also 404s the VPS's tailnet IP ({$VPS_TS_IP} from infra/.env) to genuinely cover it.
 # Use inside a `route {}` so it deterministically precedes the vhost's own handler.
 (tailnet_guard) {
@@ -110,7 +110,7 @@ admin.zoci.me {
 	import wildcard_tls
 	route {
 		import tailnet_guard
-		respond "admin — coming soon" 200
+		respond "admin: coming soon" 200
 	}
 }
 
@@ -128,6 +128,6 @@ finance.zoci.me {
 	import wildcard_tls
 	route {
 		import tailnet_guard
-		respond "finance — coming soon" 200
+		respond "finance: coming soon" 200
 	}
 }

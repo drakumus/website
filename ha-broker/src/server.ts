@@ -3,15 +3,15 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
 // True only when this file is the process entry point (prod `node dist/server.js` or
-// `tsx src/server.ts`) — false when imported by a test. Gates listen() + logging below.
+// `tsx src/server.ts`), false when imported by a test. Gates listen() + logging below.
 const isEntry = path.resolve(process.argv[1] ?? '') === fileURLToPath(import.meta.url);
 
 // Minimal Home Assistant broker (see ~/specs/complete/secure-access.md §6). This is the ONLY process
 // that holds the HA token. It exposes a narrow, whitelist-only interface to `api` over the
-// shared internal bridge — no host port, not internet-facing. It NEVER accepts a raw HA
+// shared internal bridge: no host port, not internet-facing. It NEVER accepts a raw HA
 // entity_id or service from the caller: the guest sends only an opaque `key`, which this
 // process maps to a whitelisted entity + the fixed `light` domain (turn_on/turn_off). So the
-// write path is as locked as the read path — a compromised `api` (or a nosy guest) can do no
+// write path is as locked as the read path: a compromised `api` (or a nosy guest) can do no
 // more than switch the whitelisted lights below.
 
 const app = Fastify({ logger: isEntry });
@@ -58,7 +58,7 @@ for (const r of ROOMS) for (const l of r.lights) KEY_TO_ENTITY.set(l.key, l.enti
 
 // Local-dev mock (GUEST_DEV) so the guest dashboard can be built without a real Home
 // Assistant: an in-memory on/off state per whitelisted key, set by /command below. Only
-// consulted when HA_ADDR/HA_TOKEN are unset — i.e. never in production. See DEVELOPMENT.md.
+// consulted when HA_ADDR/HA_TOKEN are unset, i.e. never in production. See DEVELOPMENT.md.
 const DEV = !!process.env.GUEST_DEV;
 const devStates = new Map<string, string>();
 if (DEV) {
@@ -80,7 +80,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 // Verify HA registered a command: re-read the entity until `ok(state)` holds or a short budget
 // elapses, returning the last state seen. We're confirming the target attribute updated (which
-// is near-instant), NOT waiting for the physical device — so this stays quick and reliable.
+// is near-instant), NOT waiting for the physical device, so this stays quick and reliable.
 async function confirm(entity: string, ok: (state: string) => boolean): Promise<string> {
   const deadline = Date.now() + 3000;
   let state = 'unknown';
@@ -89,7 +89,7 @@ async function confirm(entity: string, ok: (state: string) => boolean): Promise<
       const s = (await ha(`/api/states/${entity}`)) as { state?: string };
       state = s.state ?? 'unknown';
     } catch {
-      // Transient read blip — keep trying until the deadline rather than failing a command
+      // Transient read blip: keep trying until the deadline rather than failing a command
       // that already went through. The dashboard poll is the source of truth regardless.
     }
     if (ok(state) || Date.now() >= deadline) return state;
@@ -97,7 +97,7 @@ async function confirm(entity: string, ok: (state: string) => boolean): Promise<
   }
 }
 
-// Liveness only — no HA call, so the container is healthy even before HA_TOKEN is set.
+// Liveness only: no HA call, so the container is healthy even before HA_TOKEN is set.
 app.get('/health', async () => ({ status: 'ok' }));
 
 // Readiness: can we reach HA with the token? Used for verification/ops; exposes no HA data.
@@ -136,7 +136,7 @@ app.get('/dashboard', async (_req, reply) => {
 // Drive a whitelisted control to an EXPLICIT desired state, then verify HA accepted it.
 // Explicit (turn_on/turn_off, not toggle) so the command is idempotent and the result is
 // verifiable. Rejects anything not in the whitelist; the caller never supplies an entity_id or
-// a raw service. Response: { key, state, verified } — `verified` = HA converged to `value`.
+// a raw service. Response: { key, state, verified }, where `verified` = HA converged to `value`.
 // Generalizes to other control types: branch on the control's domain to pick the service and
 // the verify predicate (e.g. climate.set_temperature + confirm the `temperature` attribute).
 app.post('/command', async (req, reply) => {

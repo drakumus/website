@@ -20,14 +20,14 @@ build/
 /.playwright-mcp/
 /playwright/.cache/
 
-# Caddy runtime data (certs, account keys) — persisted via docker volumes, not git
+# Caddy runtime data (certs, account keys): persisted via docker volumes, not git
 /infra/caddy_data/
 /infra/caddy_config/
 
 # Wildcard cert + key written by acme.sh (host), bind-mounted read-only into Caddy
 /infra/certs/
 
-# Guest email allowlist (real Google addresses) — never commit; template is emails.txt.example
+# Guest email allowlist (real Google addresses): never commit; template is emails.txt.example
 /infra/oauth2-proxy/emails.txt
 
 # Generated container-health file (written by the status cron), plus its temp files
@@ -42,5 +42,5 @@ npm-debug.log*
 !.vscode/extensions.json
 .idea/
 
-# Local operational notes with real infra addresses — never commit
+# Local operational notes with real infra addresses: never commit
 PROJECT_STATUS.md

@@ -3,7 +3,7 @@
 // injecting an entity_id, map the status file against the canonical SERVICES list, and HTML-escape
 // the (attacker-influenceable) email without treating it as a String.replace pattern.
 //
-// Run: `npm test -w api` (node --test via tsx). No real broker — `fetch` is stubbed.
+// Run: `npm test -w api` (node --test via tsx). No real broker; `fetch` is stubbed.
 import { test, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { writeFile, unlink, mkdtemp } from 'node:fs/promises';
