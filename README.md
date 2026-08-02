@@ -29,6 +29,8 @@ tests/     # Playwright smoke suite
 
 ## Docs
 
+- `ARCHITECTURE.md` — how the whole system fits together (a pointer map into the code).
 - `DEVELOPMENT.md` — local dev loop (added during setup).
-- Specs live in `~/specs/`: `zoci-website-relaunch.md`, `zoci-networking.md`,
-  `zoci-implementation-plan.md`.
+- Design history (local, not in the repo): `~/specs/complete/` — `secure-access.md`
+  (authoritative network + security design), `zoci-networking.md`,
+  `zoci-website-relaunch.md`, and the implementation plans.

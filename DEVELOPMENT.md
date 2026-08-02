@@ -1,8 +1,8 @@
 # Development
 
 Local dev guide for zoci.me. Dev and "prod" run on the same home server; there's no
-CI/CD. Design docs live in `~/specs/` (`zoci-website-relaunch.md`,
-`zoci-networking.md`, `zoci-implementation-plan.md`).
+CI/CD. See `ARCHITECTURE.md` for the system map; design history lives in
+`~/specs/complete/` (`secure-access.md`, `zoci-networking.md`, `zoci-website-relaunch.md`, …).
 
 ## Prerequisites (one-time)
 
