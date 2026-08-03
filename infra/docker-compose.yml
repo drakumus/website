@@ -64,14 +64,18 @@ services:
     restart: unless-stopped
     logging: *default-logging
     networks:
-      # broker: reaches ha-broker (control + its /metrics). metrics: VictoriaMetrics scrapes
-      # api's :9101 metrics listener here. api is the only bridge between the two planes; it
-      # re-exposes ha-broker's metrics so VM never joins the broker network.
+      # broker: reaches ha-broker (control + its /metrics). apiscrape: a dedicated point-to-point
+      # bridge shared ONLY with VictoriaMetrics, which scrapes api's :9101 metrics listener there.
+      # api is deliberately kept OFF the shared `metrics` bridge: its :9102 admin-data listener
+      # (verdict + access audit, both identity-bearing) binds 0.0.0.0, so any bridge peer could reach
+      # it. Off `metrics`, Grafana and oauth2-proxy cannot; only VM (passive, never initiates to api)
+      # and ha-broker share a bridge with :9102. api re-exposes ha-broker's metrics so VM never joins
+      # the broker network.
       - broker
-      - metrics
+      - apiscrape
     ports:
       # main (public) app; and the admin data listener on loopback for Caddy's tailnet-gated admin
-      # vhost. The :9101 metrics listener is never host-published (metrics network only).
+      # vhost. The :9101 metrics listener is never host-published (apiscrape network only).
       - "127.0.0.1:8000:8000"
       - "127.0.0.1:9102:9102"
     environment:
@@ -192,7 +196,10 @@ services:
       - "-promscrape.configCheckInterval=30s"
       - "-storageDataPath=/victoria-metrics-data"
     networks:
+      # metrics: serves Grafana's reads and scrapes node-exporter + oauth2-proxy. apiscrape: the
+      # dedicated bridge to scrape api:9101 without putting api on the shared metrics plane (see api).
       - metrics
+      - apiscrape
     ports:
       - "127.0.0.1:8428:8428"    # loopback only: for the host-side verdict evaluator (§2, Part G)
     volumes:
@@ -304,6 +311,14 @@ networks:
     driver: bridge
   metrics:
     # Isolated bridge for the metrics plane. VictoriaMetrics + node-exporter live here; Grafana
-    # (Part C) joins to read VM. Kept separate from `broker` so scraping never widens who can
-    # reach ha-broker's control listener (spec §5, ha-broker token isolation).
+    # (Part C) joins to read VM, and oauth2-proxy joins so VM can scrape its metrics. Kept separate
+    # from `broker` so scraping never widens who can reach ha-broker's control listener (spec §5,
+    # ha-broker token isolation).
+    driver: bridge
+  apiscrape:
+    # Dedicated point-to-point bridge for VictoriaMetrics to scrape api's :9101 metrics listener.
+    # Exists so api stays off the shared `metrics` bridge: api's :9102 admin-data listener (verdict +
+    # access audit, both identity-bearing) binds 0.0.0.0, and this keeps Grafana / oauth2-proxy /
+    # node-exporter from reaching it. Only VM (passive) and ha-broker (via `broker`) can, and neither
+    # initiates requests to api.
     driver: bridge
