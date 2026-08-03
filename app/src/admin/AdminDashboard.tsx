@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Box, Container, Title, Text, Group, Stack, Badge, Tabs, Table } from '@mantine/core';
 import { motion } from 'motion/react';
 import type { AdminVerdict, AdminVerdictProblem, AccessRecord } from '@zoci/shared';
+import { FrameCard, TopGlow } from '../components/FrameCard';
 
 // Grafana dashboards embedded (iframe) under the same admin.zoci.me origin at /grafana; the themed
 // frame wraps them. The tab bar switches which dashboard the iframe shows, so a drill-down is one
@@ -153,23 +154,6 @@ function StatusDot({ overall }: { overall: AdminVerdict['overall'] }) {
   );
 }
 
-// A theme gold-frame card: the ::after frame is drawn by the shared class; frame-shimmer is the
-// one-time metal gleam. delay staggers the entrance to match the site's subtle rise.
-function FrameCard({ children, delay = 0, p = '1.1rem 1.25rem' }: { children: React.ReactNode; delay?: number; p?: string }) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1], delay }}
-    >
-      <Box className="gold-frame" style={{ padding: p, boxShadow: '0 10px 30px -16px rgba(0,0,0,0.75)' }}>
-        <span className="frame-shimmer" aria-hidden />
-        {children}
-      </Box>
-    </motion.div>
-  );
-}
-
 export default function AdminDashboard() {
   const preview = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('preview');
   const v = useVerdict(preview);
@@ -181,14 +165,7 @@ export default function AdminDashboard() {
 
   return (
     <Box style={{ minHeight: '100vh', position: 'relative' }}>
-      {/* soft top glow, matching the site */}
-      <Box
-        aria-hidden
-        style={{
-          position: 'fixed', inset: 0, zIndex: -1, pointerEvents: 'none',
-          background: 'radial-gradient(1200px 820px at 50% 0%, rgba(255,255,255,0.05), transparent 60%)',
-        }}
-      />
+      <TopGlow />
       <Container size="lg" px="md" py="xl">
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}>
           <Title order={1} className="title-accent" style={{ fontSize: 'clamp(2rem, 7vw, 3.1rem)', margin: 0 }}>

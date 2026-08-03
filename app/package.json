@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "build:admin": "tsc -b && vite build --config vite.admin.config.ts",
+    "build:finance": "tsc -b && vite build --config vite.finance.config.ts",
     "lint": "oxlint",
     "preview": "vite preview",
     "test": "vitest run"
@@ -19,6 +20,7 @@
     "motion": "^12.0.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
+    "react-plaid-link": "^5.0.0",
     "react-router": "^8.3.0"
   },
   "devDependencies": {

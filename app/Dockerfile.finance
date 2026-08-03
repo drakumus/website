@@ -1,0 +1,19 @@
+# finance-web image: build ONLY the finance bundle (app/dist-finance) and serve it as static files
+# with nginx. Its own image/container so no finance UI code lands in the public `web` image;
+# reachable only via the tailnet-gated finance.zoci.me vhost, never the public site. Static files
+# only, hardened like `web`. Build context = repo root. Mirrors Dockerfile.admin.
+FROM node:24-alpine AS build
+WORKDIR /repo
+COPY package.json package-lock.json ./
+COPY shared/package.json ./shared/
+COPY app/package.json ./app/
+COPY api/package.json ./api/
+RUN npm ci
+COPY shared ./shared
+COPY app ./app
+RUN npm run build:finance -w @zoci/app
+
+FROM nginx:alpine
+COPY infra/nginx-finance.conf /etc/nginx/conf.d/default.conf
+COPY --from=build /repo/app/dist-finance /usr/share/nginx/html
+EXPOSE 80

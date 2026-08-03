@@ -92,3 +92,23 @@ export const AccessRecord = z.object({
 export type AccessRecord = z.infer<typeof AccessRecord>;
 export const RecentAccess = z.array(AccessRecord);
 export type RecentAccess = z.infer<typeof RecentAccess>;
+
+/**
+ * GET /api/status (tailnet-only finance surface): whether the finance backend has its Plaid
+ * credentials and encryption key set, and the linked Items with their last-sync state. Produced by
+ * the finance backend, consumed by finance-web. Served only behind the tailnet finance vhost.
+ */
+export const FinanceItem = z.object({
+  item_id: z.string(),
+  institution_name: z.string().nullable(),
+  status: z.string(),
+  last_sync_at: z.string().nullable(),
+  last_error: z.string().nullable(),
+});
+export type FinanceItem = z.infer<typeof FinanceItem>;
+
+export const FinanceStatus = z.object({
+  configured: z.boolean(),
+  items: z.array(FinanceItem),
+});
+export type FinanceStatus = z.infer<typeof FinanceStatus>;

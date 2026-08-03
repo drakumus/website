@@ -168,7 +168,9 @@ finance.zoci.me {
 		handle_path /api/* {
 			reverse_proxy 127.0.0.1:9103
 		}
-		# The finance-web UI is not built yet; keep the placeholder page until it is.
-		respond "finance: coming soon" 200
+		# The React/Mantine finance UI (finance-web).
+		handle {
+			reverse_proxy 127.0.0.1:8091
+		}
 	}
 }

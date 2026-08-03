@@ -361,6 +361,31 @@ services:
       timeout: 5s
       retries: 3
 
+  finance-web:
+    # React/Mantine finance UI (finance.zoci.me). Its own image so no finance UI code lands in the
+    # public `web` bundle; reachable only via the tailnet-gated finance.zoci.me vhost, never the
+    # public site. Static files only, hardened like `web` and `admin-web`.
+    build:
+      context: ..
+      dockerfile: app/Dockerfile.finance
+    image: zoci-finance-web:latest
+    restart: unless-stopped
+    logging: *default-logging
+    ports:
+      - "127.0.0.1:8091:80"    # loopback only: Caddy (host) reaches it on the finance vhost, never LAN
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx
+      - /run
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
 volumes:
   caddy_data:
   caddy_config:
