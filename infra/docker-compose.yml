@@ -338,7 +338,8 @@ services:
     restart: unless-stopped
     logging: *default-logging
     depends_on:
-      - finance-db
+      finance-db:
+        condition: service_healthy
     networks:
       - finance
     ports:
