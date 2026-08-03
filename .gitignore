@@ -49,6 +49,14 @@ build/
 /infra/status/health-dot.json
 /infra/status/*.tmp
 
+# Access audit (§6): the raw Caddy access log (holds request headers + identities), the curated
+# append-only store the api serves, and the processor's offset state. Never commit — real
+# identities/IPs. Restricted, host-only.
+/infra/audit/caddy/*.log
+/infra/audit/.audit-offset*
+/infra/status/access.jsonl
+/infra/status/.access.*
+
 # Logs / OS / editor
 *.log
 npm-debug.log*

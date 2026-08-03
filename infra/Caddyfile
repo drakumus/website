@@ -47,6 +47,21 @@
 	respond @vps 404
 }
 
+# Access audit (§6): JSON access log for the private + guest vhosts, rolled on the host. A host-side
+# processor enriches each line (tailscale whois -> device for the private vhosts, the oauth2 email
+# for guest) into the append-only audit store. The raw log carries request headers, so it is
+# host-only, gitignored, and restricted (never static-served, never publicly reachable).
+(audit_log) {
+	log {
+		output file /var/log/caddy/audit.log {
+			roll_size 10MiB
+			roll_keep 5
+			mode 644
+		}
+		format json
+	}
+}
+
 # ---- HTTP -> HTTPS (port-less; works for public :443->VPS->:8443 and private :443 direct) ----
 :80 {
 	redir https://{host}{uri} permanent
@@ -80,6 +95,7 @@ js1.zoci.me:8443 {
 guest.zoci.me:8443 {
 	import sec
 	import wildcard_tls
+	import audit_log
 	encode zstd gzip
 
 	handle /oauth2/* {              # oauth2-proxy endpoints must BYPASS the auth check
@@ -109,6 +125,7 @@ admin.zoci.me {
 	import sec
 	import strip_auth_headers
 	import wildcard_tls
+	import audit_log
 	route {
 		import tailnet_guard
 		# Embedded Grafana: serves under /grafana (serve_from_sub_path), so pass the prefix through.
@@ -132,6 +149,7 @@ admin.zoci.me {
 ha.zoci.me {
 	import sec
 	import wildcard_tls
+	import audit_log
 	route {
 		import tailnet_guard
 		reverse_proxy {$HA_ADDR:127.0.0.1:9}
@@ -141,6 +159,7 @@ ha.zoci.me {
 finance.zoci.me {
 	import sec
 	import wildcard_tls
+	import audit_log
 	route {
 		import tailnet_guard
 		respond "finance: coming soon" 200

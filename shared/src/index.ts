@@ -102,3 +102,21 @@ export const HealthDot = z.object({
   updatedAt: z.string().optional(),
 });
 export type HealthDot = z.infer<typeof HealthDot>;
+
+/**
+ * GET /api/recent-access (tailnet-only admin surface): recent access-audit records, most-recent
+ * first. Identity is the accessing tailnet device (login) or, for guest, the oauth2 email. Served
+ * only on the admin listener, never the public path; the raw log and store stay host-only (§5/§6).
+ */
+export const AccessRecord = z.object({
+  ts: z.number(),
+  vhost: z.string(),
+  method: z.string(),
+  path: z.string(),
+  status: z.number(),
+  device: z.string(),
+  user: z.string(),
+});
+export type AccessRecord = z.infer<typeof AccessRecord>;
+export const RecentAccess = z.array(AccessRecord);
+export type RecentAccess = z.infer<typeof RecentAccess>;

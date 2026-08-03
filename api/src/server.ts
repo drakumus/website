@@ -75,6 +75,7 @@ const STATUS_FILE =
 const STATUS_DIR = path.dirname(STATUS_FILE);
 const VERDICT_FILE = process.env.VERDICT_FILE ?? path.join(STATUS_DIR, 'verdict.json');
 const DOT_FILE = process.env.DOT_FILE ?? path.join(STATUS_DIR, 'health-dot.json');
+const ACCESS_FILE = process.env.ACCESS_FILE ?? path.join(STATUS_DIR, 'access.jsonl');
 
 app.get('/health', async (): Promise<HealthResponse> => {
   return { status: 'ok' };
@@ -190,6 +191,20 @@ adminApp.get('/verdict', async (_req, reply) => {
     return JSON.parse(await readFile(VERDICT_FILE, 'utf8'));
   } catch {
     return reply.send({ overall: 'unknown', summary: 'Verdict unavailable', problems: [] });
+  }
+});
+
+// Recent access-audit records (§6), most-recent first. Read-only from the host-written store; the
+// full log/store never leave the tailnet admin surface.
+adminApp.get('/recent-access', async (_req, reply) => {
+  try {
+    const lines = (await readFile(ACCESS_FILE, 'utf8')).trim().split('\n').filter(Boolean);
+    return lines
+      .slice(-50)
+      .reverse()
+      .map((l) => JSON.parse(l));
+  } catch {
+    return reply.send([]);
   }
 });
 

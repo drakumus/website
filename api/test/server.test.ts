@@ -18,9 +18,11 @@ const STATUS_DIR = await mkdtemp(path.join(tmpdir(), 'zoci-api-'));
 const STATUS_FILE = path.join(STATUS_DIR, 'status.json');
 const VERDICT_FILE = path.join(STATUS_DIR, 'verdict.json');
 const DOT_FILE = path.join(STATUS_DIR, 'health-dot.json');
+const ACCESS_FILE = path.join(STATUS_DIR, 'access.jsonl');
 process.env.STATUS_FILE = STATUS_FILE;
 process.env.VERDICT_FILE = VERDICT_FILE;
 process.env.DOT_FILE = DOT_FILE;
+process.env.ACCESS_FILE = ACCESS_FILE;
 process.env.BROKER_URL = 'http://broker.test';
 delete process.env.GUEST_DEV;
 delete process.env.GUEST_DEV_EMAIL;
@@ -172,6 +174,23 @@ test('the full verdict is served ONLY on the admin listener, never the public ap
   assert.equal(admin.statusCode, 200);
   assert.equal(admin.json().overall, 'broken');
   assert.equal(admin.json().problems[0].service, 'jellyfin');
+});
+
+test('recent-access is served only on the admin listener, most-recent first, never public', async () => {
+  await writeFile(
+    ACCESS_FILE,
+    [
+      JSON.stringify({ ts: 1, vhost: 'admin.zoci.me', method: 'GET', path: '/', status: 200, device: 'laptop', user: 'me' }),
+      JSON.stringify({ ts: 2, vhost: 'guest.zoci.me', method: 'POST', path: '/command', status: 200, device: '', user: 'g@example.com' }),
+    ].join('\n') + '\n',
+  );
+  const pub = await app.inject({ method: 'GET', url: '/recent-access' });
+  assert.equal(pub.statusCode, 404); // audit is never on the public listener
+  const admin = await adminApp.inject({ method: 'GET', url: '/recent-access' });
+  assert.equal(admin.statusCode, 200);
+  const rows = admin.json();
+  assert.equal(rows.length, 2);
+  assert.equal(rows[0].ts, 2); // most-recent first
 });
 
 test('/metrics is not served on the main (Caddy-proxied) app', async () => {

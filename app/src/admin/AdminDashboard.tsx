@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { Box, Container, Title, Text, Group, Stack, Badge, Tabs } from '@mantine/core';
+import { Box, Container, Title, Text, Group, Stack, Badge, Tabs, Table } from '@mantine/core';
 import { motion } from 'motion/react';
-import type { AdminVerdict, AdminVerdictProblem } from '@zoci/shared';
+import type { AdminVerdict, AdminVerdictProblem, AccessRecord } from '@zoci/shared';
 
 // Grafana dashboards embedded (iframe) under the same admin.zoci.me origin at /grafana; the themed
 // frame wraps them. The tab bar switches which dashboard the iframe shows, so a drill-down is one
@@ -64,6 +64,33 @@ function useVerdict(preview: boolean): AdminVerdict {
     };
   }, [preview]);
   return v;
+}
+
+const ACCESS_STUB: AccessRecord[] = [
+  { ts: Date.now() / 1000 - 45, vhost: 'admin.zoci.me', method: 'GET', path: '/', status: 200, device: 'laptop', user: 'you@example.com' },
+  { ts: Date.now() / 1000 - 320, vhost: 'guest.zoci.me', method: 'POST', path: '/command', status: 200, device: '', user: 'guest@example.com' },
+];
+
+function useRecentAccess(preview: boolean): AccessRecord[] {
+  const [rows, setRows] = useState<AccessRecord[]>(preview ? ACCESS_STUB : []);
+  useEffect(() => {
+    if (preview) return;
+    let alive = true;
+    const load = () =>
+      fetch('/api/recent-access', { cache: 'no-store' })
+        .then((r) => (r.ok ? r.json() : []))
+        .then((d) => {
+          if (alive) setRows(Array.isArray(d) ? (d as AccessRecord[]) : []);
+        })
+        .catch(() => {});
+    void load();
+    const id = setInterval(() => void load(), 30_000);
+    return () => {
+      alive = false;
+      clearInterval(id);
+    };
+  }, [preview]);
+  return rows;
 }
 
 // The Grafana iframe is same-origin (admin.zoci.me/grafana), so size it to its content height and
@@ -148,6 +175,7 @@ export default function AdminDashboard() {
   const v = useVerdict(preview);
   const frameRef = useIframeAutoHeight(!preview);
   const [dashUid, setDashUid] = useState('zoci-general');
+  const access = useRecentAccess(preview);
   const problems = [...v.problems].sort((a, b) => (SEV_RANK[a.severity] ?? 9) - (SEV_RANK[b.severity] ?? 9));
   const when = v.updatedAt ? `updated ${new Date(v.updatedAt).toLocaleTimeString()}` : '';
 
@@ -246,6 +274,48 @@ export default function AdminDashboard() {
                   style={{ width: '100%', height: 600, border: 0, display: 'block', background: 'var(--panel)', overflow: 'hidden' }}
                 />
               </>
+            )}
+          </FrameCard>
+        </Box>
+
+        <Box mt="md">
+          <FrameCard delay={0.18} p="1rem 1.15rem">
+            <Text fz="0.72rem" fw={700} tt="uppercase" c="var(--gold-text)" style={{ letterSpacing: '0.07em' }} mb="0.7rem">
+              Recent access
+            </Text>
+            {access.length === 0 ? (
+              <Text c="dimmed" size="sm">
+                No access recorded yet.
+              </Text>
+            ) : (
+              <Table striped highlightOnHover verticalSpacing={6} fz="0.85rem" style={{ tableLayout: 'fixed' }}>
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th w={90}>When</Table.Th>
+                    <Table.Th>Who</Table.Th>
+                    <Table.Th w={80}>Surface</Table.Th>
+                    <Table.Th>Request</Table.Th>
+                    <Table.Th w={70}>Status</Table.Th>
+                  </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>
+                  {access.slice(0, 25).map((r, i) => (
+                    <Table.Tr key={i}>
+                      <Table.Td c="dimmed" style={{ whiteSpace: 'nowrap' }}>
+                        {new Date(r.ts * 1000).toLocaleTimeString()}
+                      </Table.Td>
+                      <Table.Td style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {r.device || r.user || '—'}
+                      </Table.Td>
+                      <Table.Td>{r.vhost.replace('.zoci.me', '')}</Table.Td>
+                      <Table.Td c="dimmed" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {r.method} {r.path}
+                      </Table.Td>
+                      <Table.Td c={r.status >= 500 ? 'red' : r.status >= 400 ? 'yellow' : undefined}>{r.status}</Table.Td>
+                    </Table.Tr>
+                  ))}
+                </Table.Tbody>
+              </Table>
             )}
           </FrameCard>
         </Box>

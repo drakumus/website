@@ -25,6 +25,7 @@ services:
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - ./certs:/certs:ro         # acme.sh wildcard, loaded by every vhost (auto_https off)
+      - ./audit/caddy:/var/log/caddy   # JSON access log for the audit processor (host-only, gitignored)
       - caddy_data:/data
       - caddy_config:/config
     depends_on:
