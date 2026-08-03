@@ -3,7 +3,8 @@
 
 Reads Caddy's JSON access log for the private + guest vhosts, resolves the accessing identity, and
 appends curated records to an append-only store the api serves on the tailnet admin surface. Runs
-from ROOT cron: it reads Caddy's root-owned log and runs `tailscale whois`.
+from the collector user's cron (the same user as the metric collectors); it reads Caddy's access
+log (written mode 644 for this) and runs `tailscale whois`.
 
 Identity: for the private vhosts (admin/ha/finance) the accessing tailnet device via `tailscale
 whois` on the source IP (device + login); for guest the oauth2 email header. Only the device login
@@ -26,6 +27,21 @@ STORE = os.environ.get("ACCESS_STORE", os.path.join(HERE, "access.jsonl"))
 STATE = os.environ.get("AUDIT_STATE", os.path.join(REPO, "audit", ".audit-offset"))
 RETAIN_S = 180 * 86400  # 6 months
 GUEST_VHOST = "guest.zoci.me"
+
+# The store carries identities (tailnet device names, guest emails), so it is kept off every other
+# local account (§5 "restricted"): the writer owns it, the api reader group reads it, and no other
+# user can. The api runs as the non-root `node` user (GID 1000 in node:alpine) and reads the file
+# over a read-only mount; AUDIT_READER_GID overrides that GID if the image's user ever changes.
+READER_GID = int(os.environ.get("AUDIT_READER_GID", "1000"))
+
+
+def restrict(path):
+    # 0640 + the reader GID: the cron user writes, the api reader group reads, other gets nothing.
+    try:
+        os.chown(path, -1, READER_GID)
+        os.chmod(path, 0o640)
+    except OSError:
+        pass
 
 # cron runs with a minimal PATH; ensure `tailscale` is findable (mirrors the collectors, which
 # guard PATH because binaries may not be on cron's default path). Without this, whois would fail
@@ -156,7 +172,7 @@ def process():
         with open(STORE, "a") as f:
             for r in records:
                 f.write(json.dumps(r) + "\n")
-        os.chmod(STORE, 0o644)  # api (non-root) reads it read-only; only this processor writes it
+        restrict(STORE)  # only this processor writes it; the api reader group reads it, never world
     write_offset(offset)
     trim()
 
@@ -173,7 +189,7 @@ def trim():
             tmp = STORE + ".tmp"
             with open(tmp, "w") as f:
                 f.writelines(kept)
-            os.chmod(tmp, 0o644)
+            restrict(tmp)
             os.replace(tmp, STORE)
     except Exception:
         pass
