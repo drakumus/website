@@ -14,8 +14,13 @@ import { HealthResponse, SystemStatus, SERVICES } from '@zoci/shared';
 // Env is read at module load, so configure it before importing the app. STATUS_FILE points at a
 // temp file this suite owns; BROKER_URL is a sentinel host so proxy calls are easy to assert;
 // GUEST_DEV is unset so the missing-header guard is exercised (prod has no GUEST_DEV).
-const STATUS_FILE = path.join(await mkdtemp(path.join(tmpdir(), 'zoci-api-')), 'status.json');
+const STATUS_DIR = await mkdtemp(path.join(tmpdir(), 'zoci-api-'));
+const STATUS_FILE = path.join(STATUS_DIR, 'status.json');
+const VERDICT_FILE = path.join(STATUS_DIR, 'verdict.json');
+const DOT_FILE = path.join(STATUS_DIR, 'health-dot.json');
 process.env.STATUS_FILE = STATUS_FILE;
+process.env.VERDICT_FILE = VERDICT_FILE;
+process.env.DOT_FILE = DOT_FILE;
 process.env.BROKER_URL = 'http://broker.test';
 delete process.env.GUEST_DEV;
 delete process.env.GUEST_DEV_EMAIL;
@@ -34,7 +39,7 @@ globalThis.fetch = (async (input: unknown, init: { method?: string; body?: strin
   return brokerResponse();
 }) as typeof fetch;
 
-const { app } = await import('../src/server.ts');
+const { app, metricsApp, adminApp } = await import('../src/server.ts');
 const AUTH = { 'x-auth-request-email': 'guest@example.com' };
 
 beforeEach(() => {
@@ -44,6 +49,8 @@ beforeEach(() => {
 after(async () => {
   globalThis.fetch = realFetch;
   await app.close();
+  await metricsApp.close();
+  await adminApp.close();
 });
 
 test('guest routes require the auth header (401), never reaching the broker', async () => {
@@ -143,6 +150,67 @@ test('/status reports all down (no 500) when the status file is missing', async 
   const body = SystemStatus.parse(res.json());
   assert.ok(body.containers.every((c) => c.running === false));
   assert.equal(body.updatedAt, undefined);
+});
+
+test('/health-dot serves the public aggregate dot, and unknown when the file is missing', async () => {
+  await unlink(DOT_FILE).catch(() => {});
+  let res = await app.inject({ method: 'GET', url: '/health-dot' });
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.json().status, 'unknown'); // missing file reads as unknown, never green
+  await writeFile(DOT_FILE, JSON.stringify({ status: 'healthy', updatedAt: '2026-08-02T00:00:00Z' }));
+  res = await app.inject({ method: 'GET', url: '/health-dot' });
+  assert.deepEqual(res.json(), { status: 'healthy', updatedAt: '2026-08-02T00:00:00Z' });
+});
+
+test('the full verdict is served ONLY on the admin listener, never the public app', async () => {
+  await writeFile(VERDICT_FILE, JSON.stringify({ overall: 'broken', summary: '1 problem', updatedAt: 'x', problems: [{ service: 'jellyfin', detail: 'down', severity: 'broken' }] }));
+  // public/admin split (§5): the main app (which Caddy exposes at zoci.me/api/*) has no verdict route.
+  const pub = await app.inject({ method: 'GET', url: '/verdict' });
+  assert.equal(pub.statusCode, 404);
+  // the admin data listener serves the full verdict.
+  const admin = await adminApp.inject({ method: 'GET', url: '/verdict' });
+  assert.equal(admin.statusCode, 200);
+  assert.equal(admin.json().overall, 'broken');
+  assert.equal(admin.json().problems[0].service, 'jellyfin');
+});
+
+test('/metrics is not served on the main (Caddy-proxied) app', async () => {
+  // Enforces "/metrics never public" (§5): the main app has no /metrics route, so zoci.me/api/metrics
+  // cannot reach it. Metrics live only on the separate internal-only listener below.
+  const res = await app.inject({ method: 'GET', url: '/metrics' });
+  assert.equal(res.statusCode, 404);
+});
+
+test('the metrics listener exposes zoci_api_* with route templates, and inflight rebalances', async () => {
+  await app.inject({ method: 'GET', url: '/health' });
+  await app.inject({ method: 'GET', url: '/health' });
+  brokerResponse = () => new Response('{}', { status: 200 });
+  const res = await metricsApp.inject({ method: 'GET', url: '/metrics' });
+  assert.equal(res.statusCode, 200);
+  const body = res.payload;
+  // route label is the registered template, and status is the code (labels render sorted).
+  assert.match(body, /zoci_api_requests_total\{route="\/health",status="200"\} \d+/);
+  assert.match(body, /zoci_api_request_duration_seconds_bucket\{le="\+Inf",route="\/health"\}/);
+  assert.match(body, /zoci_api_request_duration_seconds_count\{route="\/health"\}/);
+  // inflight is a gauge that returns to 0 once every request has completed.
+  assert.match(body, /zoci_api_inflight_requests 0\b/);
+});
+
+test('the metrics listener merges ha-broker metrics (VM never scrapes the broker directly)', async () => {
+  brokerResponse = () => new Response('zoci_ha_reachable 1\n', { status: 200 });
+  const res = await metricsApp.inject({ method: 'GET', url: '/metrics' });
+  assert.equal(res.statusCode, 200);
+  assert.ok(res.payload.includes('zoci_ha_reachable 1')); // fetched from BROKER_URL/metrics and appended
+  assert.ok(calls.some((c) => c.url === 'http://broker.test/metrics'));
+});
+
+test('the metrics listener still serves api metrics when the broker is unreachable', async () => {
+  brokerResponse = () => {
+    throw new Error('broker down');
+  };
+  const res = await metricsApp.inject({ method: 'GET', url: '/metrics' });
+  assert.equal(res.statusCode, 200);
+  assert.ok(res.payload.includes('zoci_api_requests_total')); // api's own metrics still present
 });
 
 test('the guest page escapes the email and does not treat it as a replace pattern', async () => {

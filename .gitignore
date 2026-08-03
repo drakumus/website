@@ -3,8 +3,13 @@ node_modules/
 .pnp
 .pnp.js
 
+# Python bytecode (verdict evaluator + its test)
+__pycache__/
+*.pyc
+
 # Build output
 dist/
+dist-admin/
 build/
 *.tsbuildinfo
 
@@ -33,6 +38,16 @@ build/
 # Generated container-health file (written by the status cron), plus its temp files
 /infra/status/status.json
 /infra/status/.status.*
+
+# Generated metrics: textfile-collector .prom output (written by host collectors) + temp files.
+/infra/metrics/textfile/*.prom
+/infra/metrics/textfile/.*.prom.*
+
+# Verdict + public-dot files the host evaluator (write-verdict.py) writes into the api ./status
+# mount. Runtime artifacts, not source.
+/infra/status/verdict.json
+/infra/status/health-dot.json
+/infra/status/*.tmp
 
 # Logs / OS / editor
 *.log

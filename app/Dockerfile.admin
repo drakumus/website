@@ -1,0 +1,18 @@
+# admin-web image: build ONLY the admin bundle (app/dist-admin) and serve it as static files with
+# nginx. Kept as its own image/container so no admin UI code lands in the public `web` image; it is
+# reachable only via the tailnet-gated admin.zoci.me vhost (Part E). Build context = repo root.
+FROM node:24-alpine AS build
+WORKDIR /repo
+COPY package.json package-lock.json ./
+COPY shared/package.json ./shared/
+COPY app/package.json ./app/
+COPY api/package.json ./api/
+RUN npm ci
+COPY shared ./shared
+COPY app ./app
+RUN npm run build:admin -w @zoci/app
+
+FROM nginx:alpine
+COPY infra/nginx-admin.conf /etc/nginx/conf.d/default.conf
+COPY --from=build /repo/app/dist-admin /usr/share/nginx/html
+EXPOSE 80

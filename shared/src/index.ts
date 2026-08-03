@@ -70,3 +70,35 @@ export const Project = z.object({
   links: z.array(ProjectLink).optional(),
 });
 export type Project = z.infer<typeof Project>;
+
+/**
+ * GET /api/verdict (tailnet-only admin surface): the whole-system health verdict the admin
+ * dashboard renders. Produced by the host-side verdict evaluator (spec §4), consumed by the
+ * admin React app. The full verdict is NEVER served on the public zoci.me/api/* path; only a
+ * single aggregate boolean (the public health dot) crosses that boundary.
+ */
+export const AdminVerdictProblem = z.object({
+  service: z.string(),
+  detail: z.string(),
+  severity: z.enum(['broken', 'degraded']),
+});
+export type AdminVerdictProblem = z.infer<typeof AdminVerdictProblem>;
+
+export const AdminVerdict = z.object({
+  overall: z.enum(['healthy', 'degraded', 'broken', 'unknown']),
+  summary: z.string(),
+  updatedAt: z.string().nullable(),
+  problems: z.array(AdminVerdictProblem),
+});
+export type AdminVerdict = z.infer<typeof AdminVerdict>;
+
+/**
+ * GET /api/health-dot (public): the single aggregate health status vended to the public front
+ * page. The ONLY health signal that crosses to zoci.me — no per-service or internal detail. The
+ * page renders green/red/gray and treats a stale updatedAt as "unknown".
+ */
+export const HealthDot = z.object({
+  status: z.enum(['healthy', 'unhealthy', 'unknown']),
+  updatedAt: z.string().optional(),
+});
+export type HealthDot = z.infer<typeof HealthDot>;

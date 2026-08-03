@@ -1,0 +1,16 @@
+# File-based dashboard provisioning: load every dashboard JSON under the mounted directory.
+# UI edits are disabled so the tracked JSON stays the source of truth.
+apiVersion: 1
+
+providers:
+  - name: zoci
+    orgId: 1
+    type: file
+    # Remove dashboards whose JSON is deleted from disk, so regenerating the set (e.g. renaming a
+    # dashboard) doesn't leave orphans in Grafana. UI edits stay disabled (anonymous read-only).
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: false
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: false

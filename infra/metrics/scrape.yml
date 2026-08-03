@@ -1,0 +1,25 @@
+# VictoriaMetrics scrape config (-promscrape.config). Prometheus scrape_configs format.
+global:
+  scrape_interval: 60s
+
+scrape_configs:
+  - job_name: node
+    static_configs:
+      - targets: ["node-exporter:9100"]
+    metric_relabel_configs:
+      # Label hygiene: node_uname_info carries the real hostname (nodename). Drop the whole
+      # series; the verdict never reads it and this repo is public.
+      - source_labels: [__name__]
+        regex: node_uname_info
+        action: drop
+
+  # api exposes its own metrics plus ha-broker's (merged over the broker network) on :9101.
+  # VictoriaMetrics reaches it over the `metrics` bridge; it never connects to ha-broker directly.
+  - job_name: api
+    static_configs:
+      - targets: ["api:9101"]
+
+  # oauth2-proxy native metrics endpoint, reachable only over the `metrics` bridge (not host-published).
+  - job_name: oauth2-proxy
+    static_configs:
+      - targets: ["oauth2-proxy:44180"]

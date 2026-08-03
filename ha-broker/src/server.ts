@@ -1,6 +1,7 @@
 import Fastify from 'fastify';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import { Registry } from './metrics.js';
 
 // True only when this file is the process entry point (prod `node dist/server.js` or
 // `tsx src/server.ts`), false when imported by a test. Gates listen() + logging below.
@@ -15,6 +16,23 @@ const isEntry = path.resolve(process.argv[1] ?? '') === fileURLToPath(import.met
 // more than switch the whitelisted lights below.
 
 const app = Fastify({ logger: isEntry });
+
+// Metrics (spec §3). Aggregate only: no entity_id, HA state, or token fragment ever becomes a
+// label, so /metrics is safe to expose to the metrics plane. `api` scrapes this endpoint over the
+// broker network and re-exposes it; VictoriaMetrics never connects to this token holder directly.
+const registry = new Registry();
+const haRoundtripFailures = registry.counter(
+  'zoci_ha_roundtrip_failures_total',
+  'ha-broker -> Home Assistant round-trip failures.',
+);
+const haRoundtripSeconds = registry.histogram(
+  'zoci_ha_roundtrip_seconds',
+  'ha-broker -> Home Assistant round-trip latency in seconds.',
+);
+const haReachable = registry.gauge(
+  'zoci_ha_reachable',
+  '1 if the background prober last reached Home Assistant, else 0.',
+);
 
 const PORT = Number(process.env.PORT ?? 8080);
 const HOST = '0.0.0.0'; // reachable by `api` on the bridge; compose publishes no host port
@@ -68,12 +86,42 @@ if (DEV) {
 }
 
 async function ha(path: string, init?: RequestInit): Promise<unknown> {
-  const res = await fetch(`http://${HA_ADDR}${path}`, {
-    ...init,
-    headers: { Authorization: `Bearer ${HA_TOKEN}`, 'Content-Type': 'application/json', ...(init?.headers ?? {}) },
-  });
-  if (!res.ok) throw new Error(`HA ${path} -> ${res.status}`);
-  return res.json();
+  const start = performance.now();
+  let failed = false;
+  try {
+    const res = await fetch(`http://${HA_ADDR}${path}`, {
+      ...init,
+      headers: { Authorization: `Bearer ${HA_TOKEN}`, 'Content-Type': 'application/json', ...(init?.headers ?? {}) },
+    });
+    if (!res.ok) {
+      failed = true;
+      throw new Error(`HA ${path} -> ${res.status}`);
+    }
+    return await res.json();
+  } catch (err) {
+    failed = true;
+    throw err;
+  } finally {
+    // The path is not a label: it can carry entity_ids (spec §5). Aggregate latency only.
+    haRoundtripSeconds.observe((performance.now() - start) / 1000);
+    if (failed) haRoundtripFailures.inc();
+  }
+}
+
+// Background reachability prober (spec §3): periodically confirm HA is reachable, independent of
+// guest traffic, so zoci_ha_reachable reflects the link even when nobody is using the dashboard.
+// Uses its own request, not ha(), so synthetic probes never pollute the round-trip metrics.
+async function probeHa(): Promise<void> {
+  if (!HA_ADDR || !HA_TOKEN) {
+    haReachable.set(DEV ? 1 : 0);
+    return;
+  }
+  try {
+    const res = await fetch(`http://${HA_ADDR}/api/`, { headers: { Authorization: `Bearer ${HA_TOKEN}` } });
+    haReachable.set(res.ok ? 1 : 0);
+  } catch {
+    haReachable.set(0);
+  }
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -99,6 +147,13 @@ async function confirm(entity: string, ok: (state: string) => boolean): Promise<
 
 // Liveness only: no HA call, so the container is healthy even before HA_TOKEN is set.
 app.get('/health', async () => ({ status: 'ok' }));
+
+// Prometheus metrics, served on the broker-network control listener (no host port, not on the
+// metrics network). Only `api` reaches it, over the existing bridge; it re-exposes this to the
+// metrics plane. Aggregate series only, so no token or entity_id is ever exposed.
+app.get('/metrics', async (_req, reply) => {
+  return reply.type('text/plain; version=0.0.4').send(registry.expose());
+});
 
 // Readiness: can we reach HA with the token? Used for verification/ops; exposes no HA data.
 app.get('/ha-check', async (_req, reply) => {
@@ -166,6 +221,11 @@ if (isEntry) {
       app.log.error(err);
       process.exit(1);
     });
+
+  // Prime and schedule the reachability prober. unref() so it never keeps the process alive.
+  const PROBE_INTERVAL_MS = Number(process.env.HA_PROBE_INTERVAL_MS ?? 30000);
+  void probeHa();
+  setInterval(() => void probeHa(), PROBE_INTERVAL_MS).unref();
 }
 
 export { app };

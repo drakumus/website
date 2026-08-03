@@ -1,0 +1,30 @@
+# Host metrics collectors (spec Part B). These write node_exporter textfile .prom files that
+# VictoriaMetrics scrapes. Install these lines into the collector user's crontab (the same user
+# that runs infra/status/write-status.sh). The SSD collector is the exception: it needs privileged
+# device access and is installed into ROOT's crontab by install-ssd-collector.sh (see the SSD note).
+#
+#   crontab -l | { cat; grep -v '^#' infra/metrics/collectors/crontab.example; } | crontab -
+#
+# Cadences match how fast each signal changes; the verdict gates on collector freshness (§3), so a
+# missed cycle shows "collector down" rather than a stale-but-green reading.
+
+# Container liveness + resource use: every minute (matches write-status.sh).
+* * * * * /home/rohan/projects/zoci-website/infra/metrics/collectors/collect-containers.sh >/dev/null 2>&1
+
+# Tailnet VPS-peer reachability: every minute (self-loads VPS_TS_IP from infra/.env).
+* * * * * /home/rohan/projects/zoci-website/infra/metrics/collectors/collect-tailnet.sh >/dev/null 2>&1
+
+# Backup freshness marker: every 5 minutes.
+*/5 * * * * /home/rohan/projects/zoci-website/infra/metrics/collectors/collect-backup.sh >/dev/null 2>&1
+
+# Public cert expiry: hourly.
+7 * * * * /home/rohan/projects/zoci-website/infra/metrics/collectors/collect-cert.sh >/dev/null 2>&1
+
+# Pinned-image staleness: daily (pulls manifests / hits registries, so not per-minute).
+23 4 * * * /home/rohan/projects/zoci-website/infra/metrics/collectors/collect-images.sh >/dev/null 2>&1
+
+# SSD SMART wear: hourly, in ROOT's crontab (privileged device access). Do NOT add it here.
+# One-shot setup (smartmontools + the root cron line + a priming run) is handled by the installer:
+#   sudo bash infra/metrics/collectors/install-ssd-collector.sh [device]   # device default /dev/nvme0
+# The root cron line it installs looks like:
+#   17 * * * * SSD_DEVICE=/dev/nvme0 /home/rohan/projects/zoci-website/infra/metrics/collectors/collect-ssd.sh >/dev/null 2>&1

@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/png" href="/favicon-planet.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#131417" />
+    <meta name="color-scheme" content="dark" />
+    <title>zoci · system health</title>
+    <!-- Paint the dark base before JS runs (the app CSS is bundled into JS), same as the public
+         entry, so a reload never flashes white. -->
+    <style>
+      html { background-color: #131417; color-scheme: dark; }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/admin/main.tsx"></script>
+  </body>
+</html>

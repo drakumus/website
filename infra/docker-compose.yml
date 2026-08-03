@@ -63,9 +63,16 @@ services:
     restart: unless-stopped
     logging: *default-logging
     networks:
+      # broker: reaches ha-broker (control + its /metrics). metrics: VictoriaMetrics scrapes
+      # api's :9101 metrics listener here. api is the only bridge between the two planes; it
+      # re-exposes ha-broker's metrics so VM never joins the broker network.
       - broker
+      - metrics
     ports:
+      # main (public) app; and the admin data listener on loopback for Caddy's tailnet-gated admin
+      # vhost. The :9101 metrics listener is never host-published (metrics network only).
       - "127.0.0.1:8000:8000"
+      - "127.0.0.1:9102:9102"
     environment:
       - STATUS_FILE=/status/status.json
     # Read-only container-health file, written by the host cron (infra/status/write-status.sh).
@@ -138,9 +145,16 @@ services:
     image: quay.io/oauth2-proxy/oauth2-proxy:v7.15.3@sha256:10a1165743a192e1940b4708fb9647027185ce11a681a1c5519b442ff7f1f561
     restart: unless-stopped
     logging: *default-logging
+    # default: egress to Google + the loopback :4180 Caddy calls. metrics: VictoriaMetrics scrapes
+    # the native metrics endpoint (:44180) here; that port is not host-published, so it stays off
+    # the LAN and reaches only the metrics plane.
+    networks:
+      - default
+      - metrics
     ports:
       - "127.0.0.1:4180:4180"
     environment:
+      - OAUTH2_PROXY_METRICS_ADDRESS=0.0.0.0:44180
       - OAUTH2_PROXY_PROVIDER=google
       - OAUTH2_PROXY_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
       - OAUTH2_PROXY_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}
@@ -158,10 +172,136 @@ services:
     volumes:
       - ./oauth2-proxy/emails.txt:/etc/oauth2-proxy/emails.txt:ro
 
+  victoria-metrics:
+    # Time-series store for the admin dashboard (spec §2): PromQL-compatible, 6 months raw
+    # retention, no downsampling. Reachable exactly two ways: over the `metrics` bridge (Grafana
+    # reads it) and on host loopback 127.0.0.1:8428 (the host-side verdict evaluator queries it).
+    # Never bound to the tailnet or LAN: its HTTP API is unauthenticated and can delete series,
+    # so a routable bind would let any peer (including the semi-trusted VPS) wipe the store.
+    image: victoriametrics/victoria-metrics:v1.148.0@sha256:407013e902f9a0ba1d4b2d4c077c47bbaf917c893c52ff39b19efe83a654afda
+    restart: unless-stopped
+    logging: *default-logging
+    command:
+      - "-retentionPeriod=6"
+      - "-promscrape.config=/etc/vm/scrape.yml"
+      # Re-read scrape.yml periodically. Note: scrape.yml is a single-file bind mount, so an
+      # editor that replaces the inode is not seen until the container is recreated (same class as
+      # the Caddyfile gotcha in infra/CLAUDE.md); recreate victoria-metrics when jobs change.
+      - "-promscrape.configCheckInterval=30s"
+      - "-storageDataPath=/victoria-metrics-data"
+    networks:
+      - metrics
+    ports:
+      - "127.0.0.1:8428:8428"    # loopback only: for the host-side verdict evaluator (§2, Part G)
+    volumes:
+      - ./metrics/scrape.yml:/etc/vm/scrape.yml:ro
+      - vm_data:/victoria-metrics-data
+    security_opt:
+      - no-new-privileges:true
+
+  node-exporter:
+    # Host metrics + the textfile collector's zoci_* series (spec §2/§3). Reads host /proc,/sys,/
+    # read-only via --path.* mounts, or it reports its own container namespace instead of the
+    # host. Reachable only by VictoriaMetrics over the `metrics` bridge: no published port, no
+    # host networking. Non-root (image default `nobody`), read-only rootfs, all caps dropped.
+    image: prom/node-exporter:v1.12.1@sha256:1b4e4438faca4dd7e001dd445d161a4a2091b0fededa84093b3a8dfeae1f1be0
+    restart: unless-stopped
+    logging: *default-logging
+    command:
+      - "--path.procfs=/host/proc"
+      - "--path.sysfs=/host/sys"
+      - "--path.rootfs=/rootfs"
+      - "--collector.textfile.directory=/textfile"
+      # Only the collectors the dashboard reads; keeps the series set small and predictable.
+      - "--collector.disable-defaults"
+      - "--collector.cpu"
+      - "--collector.loadavg"
+      - "--collector.meminfo"
+      - "--collector.filesystem"
+      - "--collector.textfile"
+    networks:
+      - metrics
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+      - ./metrics/textfile:/textfile:ro
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+  admin-web:
+    # React/Mantine admin dashboard UI (spec Part D). Its own image so no admin UI code lands in
+    # the public `web` bundle; reachable only via the tailnet-gated admin.zoci.me vhost (Part E),
+    # never the public site. Static files only, hardened like `web`.
+    build:
+      context: ..
+      dockerfile: app/Dockerfile.admin
+    image: zoci-admin-web:latest
+    restart: unless-stopped
+    logging: *default-logging
+    ports:
+      - "127.0.0.1:8090:80"    # loopback only: Caddy (host) reaches it on the admin vhost, never LAN
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx
+      - /run
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  grafana:
+    # Graphs + history for the admin dashboard (spec §2, Part C). Reads VictoriaMetrics over the
+    # `metrics` bridge; reachable only through Caddy on the tailnet (Part E), never host-published.
+    # Anonymous Viewer, read-only, login + sign-up disabled: no account exists to reconfigure the
+    # datasource toward VM's unauthenticated delete API. Serves under /grafana so the themed admin
+    # landing can iframe-embed its panels (allow_embedding on; Caddy adds the frame-ancestors CSP).
+    image: grafana/grafana:13.1.1@sha256:7cb8c64c4d57a57e734073f3cc94620adb24a0acb929bd80ba9f14017e3a975b
+    restart: unless-stopped
+    logging: *default-logging
+    networks:
+      - metrics
+    ports:
+      - "127.0.0.1:3000:3000"    # loopback only: host-networked Caddy proxies /grafana here (Part E)
+    environment:
+      - GF_SERVER_ROOT_URL=https://admin.zoci.me/grafana/
+      - GF_SERVER_SERVE_FROM_SUB_PATH=true
+      - GF_SECURITY_ALLOW_EMBEDDING=true
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+      - GF_AUTH_DISABLE_LOGIN_FORM=true
+      - GF_AUTH_BASIC_ENABLED=false
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_USERS_DEFAULT_THEME=dark
+      - GF_ANALYTICS_REPORTING_ENABLED=false
+      - GF_ANALYTICS_CHECK_FOR_UPDATES=false
+      - GF_NEWS_NEWS_FEED_ENABLED=false
+      - GF_LOG_LEVEL=warn
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    security_opt:
+      - no-new-privileges:true
+
 volumes:
   caddy_data:
   caddy_config:
+  vm_data:
+  grafana_data:
 
 networks:
   broker:
+    driver: bridge
+  metrics:
+    # Isolated bridge for the metrics plane. VictoriaMetrics + node-exporter live here; Grafana
+    # (Part C) joins to read VM. Kept separate from `broker` so scraping never widens who can
+    # reach ha-broker's control listener (spec §5, ha-broker token isolation).
     driver: bridge

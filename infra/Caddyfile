@@ -107,10 +107,25 @@ guest.zoci.me:8443 {
 # ================= PRIVATE (tailnet-only; served on :443) =================
 admin.zoci.me {
 	import sec
+	import strip_auth_headers
 	import wildcard_tls
 	route {
 		import tailnet_guard
-		respond "admin: coming soon" 200
+		# Embedded Grafana: serves under /grafana (serve_from_sub_path), so pass the prefix through.
+		# frame-ancestors 'self' lets the same-origin admin page iframe it, nothing else.
+		handle /grafana/* {
+			header Content-Security-Policy "frame-ancestors 'self'"
+			reverse_proxy 127.0.0.1:3000
+		}
+		# Admin data API (verdict, etc.): the api admin listener, tailnet-only. Strip /api like the
+		# public vhost so the listener sees /verdict. The full verdict is never on the public :8000.
+		handle_path /api/* {
+			reverse_proxy 127.0.0.1:9102
+		}
+		# The React/Mantine admin UI (admin-web).
+		handle {
+			reverse_proxy 127.0.0.1:8090
+		}
 	}
 }
 

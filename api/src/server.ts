@@ -3,7 +3,8 @@ import { readFile } from 'node:fs/promises';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
-import { HealthResponse, SystemStatus, SERVICES } from '@zoci/shared';
+import { HealthResponse, SystemStatus, SERVICES, HealthDot } from '@zoci/shared';
+import { Registry } from '@zoci/shared/metrics';
 
 // True only when this file is the process entry point (prod `node dist/server.js` or
 // `tsx src/server.ts`), false when imported by a test. Gates listen() + logging below,
@@ -16,6 +17,30 @@ const app = Fastify({ logger: isEntry });
 const PORT = Number(process.env.PORT ?? 8000);
 const HOST = process.env.HOST ?? '0.0.0.0';
 const BROKER_URL = process.env.BROKER_URL ?? 'http://ha-broker:8080';
+
+// Metrics (spec §3). The `route` label is always the registered route template, never the raw
+// path, to bound cardinality; no identity or email is ever a label (that is the audit log, §6).
+const registry = new Registry();
+const requestsTotal = registry.counter('zoci_api_requests_total', 'API requests by route and status.');
+const errorsTotal = registry.counter('zoci_api_errors_total', 'API errors that did not crash the container.');
+const requestDuration = registry.histogram('zoci_api_request_duration_seconds', 'API request duration in seconds.');
+const inflightRequests = registry.gauge('zoci_api_inflight_requests', 'API requests currently in flight.');
+
+// Fastify fires onRequest for every request and onResponse when the reply is sent, so inflight
+// stays balanced and every response (including 401/404/5xx) is counted exactly once.
+app.addHook('onRequest', async () => {
+  inflightRequests.inc();
+});
+app.addHook('onResponse', async (request, reply) => {
+  inflightRequests.dec();
+  const route = request.routeOptions?.url ?? 'unmatched';
+  requestsTotal.inc({ route, status: String(reply.statusCode) });
+  requestDuration.observe(reply.elapsedTime / 1000, { route });
+});
+app.addHook('onError', async (request, _reply, error) => {
+  const route = request.routeOptions?.url ?? 'unmatched';
+  errorsTotal.inc({ route, kind: error.name || 'Error' });
+});
 
 // Local-dev escape hatch: in production the guest surface is gated by oauth2-proxy/Google
 // (Caddy sets X-Auth-Request-Email). There's no oauth2-proxy in `npm run dev`, so when
@@ -44,8 +69,26 @@ const STATUS_FILE =
   process.env.STATUS_FILE ??
   path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../infra/status/status.json');
 
+// The host-side verdict evaluator (infra/status/write-verdict.py) writes these next to the status
+// file, in the same read-only ./status mount. The public dot is served here on the main (public)
+// listener; the FULL verdict is served only on the admin listener below, never on :8000.
+const STATUS_DIR = path.dirname(STATUS_FILE);
+const VERDICT_FILE = process.env.VERDICT_FILE ?? path.join(STATUS_DIR, 'verdict.json');
+const DOT_FILE = process.env.DOT_FILE ?? path.join(STATUS_DIR, 'health-dot.json');
+
 app.get('/health', async (): Promise<HealthResponse> => {
   return { status: 'ok' };
+});
+
+// Public aggregate health dot (spec §4/Part I): the only health signal on the public path. A
+// missing/unreadable file reads as "unknown"; the front page also treats a stale updatedAt as
+// unknown. The full verdict is NOT reachable here.
+app.get('/health-dot', async (): Promise<HealthDot> => {
+  try {
+    return HealthDot.parse(JSON.parse(await readFile(DOT_FILE, 'utf8')));
+  } catch {
+    return { status: 'unknown' };
+  }
 });
 
 app.get('/status', async (): Promise<SystemStatus> => {
@@ -121,6 +164,35 @@ app.register(
   { prefix: '/guest' },
 );
 
+// Metrics listener: a second server on an internal-only port, reachable by VictoriaMetrics over
+// the `metrics` docker network and never host-published, so /metrics is never on the Caddy-proxied
+// :8000 (zoci.me/api/metrics stays 404). It merges ha-broker's /metrics, fetched over the broker
+// network, so VictoriaMetrics never connects to the token holder directly.
+const metricsApp = Fastify({ logger: false });
+metricsApp.get('/metrics', async (_req, reply) => {
+  let body = registry.expose();
+  try {
+    const res = await fetch(`${BROKER_URL}/metrics`);
+    if (res.ok) body += await res.text();
+  } catch {
+    // Broker unreachable: serve api's own metrics; ha-broker liveness is covered elsewhere (§3).
+  }
+  return reply.type('text/plain; version=0.0.4').send(body);
+});
+
+// Admin data listener: the FULL verdict (and, later, the recent-access panel) on an internal-only
+// port that ONLY the tailnet-gated admin.zoci.me vhost proxies. It is never on the public :8000
+// listener, so zoci.me/api/verdict cannot reach it — the public/admin split is structural, not a
+// header check. Only the one-bit /health-dot crosses to the public site.
+const adminApp = Fastify({ logger: false });
+adminApp.get('/verdict', async (_req, reply) => {
+  try {
+    return JSON.parse(await readFile(VERDICT_FILE, 'utf8'));
+  } catch {
+    return reply.send({ overall: 'unknown', summary: 'Verdict unavailable', problems: [] });
+  }
+});
+
 if (isEntry) {
   app
     .listen({ port: PORT, host: HOST })
@@ -129,6 +201,26 @@ if (isEntry) {
       app.log.error(err);
       process.exit(1);
     });
+
+  const METRICS_PORT = Number(process.env.METRICS_PORT ?? 9101);
+  const METRICS_HOST = process.env.METRICS_HOST ?? '0.0.0.0';
+  metricsApp
+    .listen({ port: METRICS_PORT, host: METRICS_HOST })
+    .then((addr) => app.log.info(`api metrics listening on ${addr}`))
+    .catch((err) => {
+      app.log.error(err);
+      process.exit(1);
+    });
+
+  const ADMIN_PORT = Number(process.env.ADMIN_PORT ?? 9102);
+  const ADMIN_HOST = process.env.ADMIN_HOST ?? '0.0.0.0';
+  adminApp
+    .listen({ port: ADMIN_PORT, host: ADMIN_HOST })
+    .then((addr) => app.log.info(`api admin listening on ${addr}`))
+    .catch((err) => {
+      app.log.error(err);
+      process.exit(1);
+    });
 }
 
-export { app };
+export { app, metricsApp, adminApp };

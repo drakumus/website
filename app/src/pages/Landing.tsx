@@ -2,9 +2,8 @@ import { Box, Center, SimpleGrid, Card, Text, Group, ThemeIcon, Stack, Paper } f
 import { motion } from 'motion/react';
 import { Link } from 'react-router';
 import { AnimatedBackground } from '../components/AnimatedBackground';
-import { useSystemStatus } from '../lib/api';
+import { useHealthDot } from '../lib/api';
 import { panelStyle } from '../theme';
-import { SERVICES } from '@zoci/shared';
 
 type Destination = { title: string; desc: string; to: string; external: boolean; emoji: string };
 
@@ -13,56 +12,38 @@ const destinations: Destination[] = [
   { title: 'Jellyfin', desc: 'Media server', to: 'https://js1.zoci.me', external: true, emoji: '🎬' },
 ];
 
-// Fallback labels shown while the first status request is in flight (from the shared
-// canonical service list). If the status file goes stale (cron stopped), show unknown.
-const SERVICE_NAMES = SERVICES.map((s) => s.name);
+// A public health signal is stale (and shown as unknown) if the dot has not been refreshed within
+// this window. The full per-service verdict stays tailnet-only; the public page shows one dot only.
 const STALE_MS = 90_000;
 
-function StatusDot({ state }: { state: 'up' | 'down' | 'loading' }) {
-  const color = state === 'up' ? '#2ecc71' : state === 'down' ? '#e14848' : '#555';
-  return (
-    <Box
-      w={9}
-      h={9}
-      style={{
-        borderRadius: '50%',
-        backgroundColor: color,
-        boxShadow: state === 'up' ? '0 0 6px rgba(46, 204, 113, 0.9)' : undefined,
-        flexShrink: 0,
-      }}
-    />
-  );
-}
+type DotState = 'healthy' | 'unhealthy' | 'unknown' | 'loading';
+const DOT_UI: Record<DotState, { color: string; label: string; glow?: string }> = {
+  healthy: { color: '#2ecc71', label: 'All systems operational', glow: '0 0 6px rgba(46,204,113,0.9)' },
+  unhealthy: { color: '#e14848', label: 'Investigating an issue' },
+  unknown: { color: '#8a8a8a', label: 'Status unavailable' },
+  loading: { color: '#555', label: 'Checking status…' },
+};
 
-// Small home-server dashboard: a status dot per Docker container.
+// Public aggregate health: a single dot derived from the same verdict, with no per-service detail.
+// A stale or unknown dot shows as "unavailable" rather than a false green.
 function ServerStatus() {
-  const status = useSystemStatus();
-  const loading = status === null;
-  const stale =
-    !loading && status.updatedAt ? Date.now() - Date.parse(status.updatedAt) > STALE_MS : false;
-  const unknown = loading || stale;
-  const items =
-    status && status.containers.length > 0
-      ? status.containers
-      : SERVICE_NAMES.map((name) => ({ name, running: false }));
+  const dot = useHealthDot();
+  const loading = dot === null;
+  const stale = dot?.updatedAt ? Date.now() - Date.parse(dot.updatedAt) > STALE_MS : true;
+  const state: DotState = loading ? 'loading' : stale || dot.status === 'unknown' ? 'unknown' : dot.status;
+  const ui = DOT_UI[state];
 
   return (
     <Paper radius="md" px="md" py="xs" w="100%" style={panelStyle}>
-      <Text size="xs" c="dimmed" fw={700} tt="uppercase" ta="center" mb={8} style={{ letterSpacing: 1 }}>
-        Server
-      </Text>
-      <Group justify="center" gap="lg">
-        {items.map((c) => (
-          <Group
-            key={c.name}
-            gap={7}
-            wrap="nowrap"
-            title={`${c.name}: ${unknown ? (loading ? 'checking…' : 'stale') : c.running ? 'running' : 'down'}`}
-          >
-            <StatusDot state={unknown ? 'loading' : c.running ? 'up' : 'down'} />
-            <Text size="sm">{c.name}</Text>
-          </Group>
-        ))}
+      <Group justify="center" gap="sm" wrap="nowrap">
+        <Box
+          w={9}
+          h={9}
+          style={{ borderRadius: '50%', backgroundColor: ui.color, boxShadow: ui.glow, flexShrink: 0 }}
+        />
+        <Text size="sm" c="dimmed">
+          {ui.label}
+        </Text>
       </Group>
     </Paper>
   );

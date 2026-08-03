@@ -92,3 +92,39 @@ test('/dashboard exposes no HA entity_ids', async () => {
   assert.ok(!res.payload.includes('entity_id'));
   assert.ok(!res.payload.includes('light.')); // no HA entity ids in the guest-facing payload
 });
+
+test('/metrics exposes aggregate zoci_ha_* series after HA traffic', async () => {
+  reset();
+  await command({ key: KEY, value: 'on' }); // drives ha() -> a round-trip is observed
+  const res = await app.inject({ method: 'GET', url: '/metrics' });
+  assert.equal(res.statusCode, 200);
+  assert.match(String(res.headers['content-type'] ?? ''), /text\/plain/);
+  assert.match(res.payload, /# TYPE zoci_ha_roundtrip_seconds histogram/);
+  assert.match(res.payload, /zoci_ha_roundtrip_seconds_count \d+/);
+  assert.match(res.payload, /# TYPE zoci_ha_roundtrip_failures_total counter/);
+  assert.match(res.payload, /# TYPE zoci_ha_reachable gauge/);
+});
+
+test('/metrics leaks neither the HA token nor any entity_id (token isolation)', async () => {
+  reset();
+  await command({ key: KEY, value: 'on' }); // exercises the token + entity path before scraping
+  const res = await app.inject({ method: 'GET', url: '/metrics' });
+  assert.equal(res.statusCode, 200);
+  assert.ok(!res.payload.includes(process.env.HA_TOKEN!)); // the bearer token never appears
+  assert.ok(!res.payload.includes('entity_id'));
+  assert.ok(!res.payload.includes(ENTITY)); // light.guest_bedroom_main_lights
+  assert.ok(!res.payload.includes('light.')); // no HA entity ids at all
+});
+
+test('a failed HA round-trip increments zoci_ha_roundtrip_failures_total', async () => {
+  reset();
+  const saved = globalThis.fetch;
+  globalThis.fetch = (async () => {
+    throw new Error('HA unreachable');
+  }) as typeof fetch;
+  await app.inject({ method: 'POST', url: '/command', payload: { key: KEY, value: 'on' } }); // ha() throws
+  globalThis.fetch = saved;
+  const res = await app.inject({ method: 'GET', url: '/metrics' });
+  const m = res.payload.match(/zoci_ha_roundtrip_failures_total (\d+)/);
+  assert.ok(m && Number(m[1]) >= 1, 'failures counter should have incremented');
+});

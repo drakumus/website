@@ -1,0 +1,16 @@
+# VictoriaMetrics as a Prometheus-compatible datasource (spec §2). Reached over the `metrics`
+# bridge by service name. Read-only and non-editable: the anonymous Viewer cannot repoint it.
+apiVersion: 1
+
+datasources:
+  - name: VictoriaMetrics
+    uid: victoriametrics
+    type: prometheus
+    access: proxy
+    url: http://victoria-metrics:8428
+    isDefault: true
+    editable: false
+    jsonData:
+      httpMethod: POST
+      prometheusType: Prometheus
+      timeInterval: 60s
