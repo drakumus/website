@@ -120,11 +120,18 @@ export default function FinanceApp() {
     async (publicToken: string) => {
       localStorage.removeItem(SAVED_TOKEN);
       setToken(null);
-      await fetch('/api/link/exchange', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ public_token: publicToken }),
-      });
+      setBusy(true);
+      try {
+        await fetch('/api/link/exchange', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ public_token: publicToken }),
+        });
+        // Pull straight away so a freshly linked account fills the dashboard without a separate step.
+        await fetch('/api/sync', { method: 'POST' });
+      } finally {
+        setBusy(false);
+      }
       if (isOAuthReturn) window.history.replaceState({}, '', window.location.pathname);
       refresh();
     },
