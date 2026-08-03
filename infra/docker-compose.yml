@@ -300,11 +300,73 @@ services:
     security_opt:
       - no-new-privileges:true
 
+  finance-db:
+    # Postgres for the finance dashboard (see ~/specs/finance-dashboard.md). On the internal
+    # `finance` bridge only: no host port, never on the LAN or internet, reached solely by the
+    # finance backend. Data at rest is not yet encrypted (host full-disk encryption is the intended
+    # control; see the spec's at-rest note). Needs FINANCE_DB_PASSWORD in infra/.env; an empty value
+    # makes Postgres refuse to initialize (the container restart-loops until it is set).
+    image: postgres:17-alpine@sha256:742f40ea20b9ff2ff31db5458d127452988a2164df9e17441e191f3b72252193
+    restart: unless-stopped
+    logging: *default-logging
+    networks:
+      - finance
+    environment:
+      - POSTGRES_USER=finance
+      - POSTGRES_DB=finance
+      - POSTGRES_PASSWORD=${FINANCE_DB_PASSWORD}
+    volumes:
+      - finance_db:/var/lib/postgresql/data
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U finance -d finance"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  finance:
+    # Finance backend (see ~/specs/finance-dashboard.md): the only process holding the Plaid
+    # credentials and the Postgres connection, isolated from the internet-facing `api` the way
+    # ha-broker isolates the HA token. On the `finance` bridge to reach finance-db; published on host
+    # loopback for the tailnet-gated finance.zoci.me vhost only, never the LAN or internet. Serves
+    # /health until PLAID_* and FINANCE_TOKEN_KEY are set, then the link + pull routes.
+    build:
+      context: ../finance
+      dockerfile: Dockerfile
+    image: zoci-finance:latest
+    restart: unless-stopped
+    logging: *default-logging
+    depends_on:
+      - finance-db
+    networks:
+      - finance
+    ports:
+      - "127.0.0.1:9103:9103"
+    environment:
+      - PLAID_CLIENT_ID=${PLAID_CLIENT_ID:-}
+      - PLAID_SECRET=${PLAID_SECRET:-}
+      - PLAID_ENV=${PLAID_ENV:-sandbox}
+      - PLAID_REDIRECT_URI=${PLAID_REDIRECT_URI:-}
+      - FINANCE_TOKEN_KEY=${FINANCE_TOKEN_KEY:-}
+      - DATABASE_URL=postgresql://finance:${FINANCE_DB_PASSWORD}@finance-db:5432/finance
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:9103/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
 volumes:
   caddy_data:
   caddy_config:
   vm_data:
   grafana_data:
+  finance_db:
 
 networks:
   broker:
@@ -321,4 +383,8 @@ networks:
     # access audit, both identity-bearing) binds 0.0.0.0, and this keeps Grafana / oauth2-proxy /
     # node-exporter from reaching it. Only VM (passive) and ha-broker (via `broker`) can, and neither
     # initiates requests to api.
+    driver: bridge
+  finance:
+    # Isolated bridge for the finance data plane: the finance backend and its Postgres, nothing
+    # else. Keeps the Plaid-derived data and the database off every other plane.
     driver: bridge

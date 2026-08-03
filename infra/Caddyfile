@@ -162,6 +162,13 @@ finance.zoci.me {
 	import audit_log
 	route {
 		import tailnet_guard
+		# Finance data API: the finance backend's loopback listener, tailnet-only. Strip /api like the
+		# public + admin vhosts so the listener sees /status, /sync, /link/*. The Plaid credentials and
+		# financial data live only behind this, never on the public :8000.
+		handle_path /api/* {
+			reverse_proxy 127.0.0.1:9103
+		}
+		# The finance-web UI is not built yet; keep the placeholder page until it is.
 		respond "finance: coming soon" 200
 	}
 }
