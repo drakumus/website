@@ -112,3 +112,41 @@ export const FinanceStatus = z.object({
   items: z.array(FinanceItem),
 });
 export type FinanceStatus = z.infer<typeof FinanceStatus>;
+
+/**
+ * GET /api/overview (tailnet-only finance surface): the dashboard read model over the last `days`.
+ * Spend excludes transfers so money-in/out and net worth are not double-counted. Produced by the
+ * finance backend, consumed by finance-web.
+ */
+const FinanceBar = z.object({ label: z.string(), amount: z.number() });
+
+export const FinanceOverview = z.object({
+  netWorth: z.object({ assets: z.number(), liabilities: z.number(), net: z.number() }),
+  period: z.object({ days: z.number(), income: z.number(), spend: z.number() }),
+  topMerchants: z.array(FinanceBar),
+  topCategories: z.array(FinanceBar),
+  spendSeries: z.array(z.object({ period: z.string(), amount: z.number() })),
+  recurring: z.array(
+    z.object({
+      label: z.string(),
+      merchant: z.string().nullable(),
+      category: z.string().nullable(),
+      amount: z.number(),
+      frequency: z.string().nullable(),
+    }),
+  ),
+  investments: z.object({
+    total: z.number(),
+    positions: z.array(
+      z.object({
+        ticker: z.string().nullable(),
+        name: z.string().nullable(),
+        type: z.string().nullable(),
+        quantity: z.number(),
+        value: z.number(),
+      }),
+    ),
+    byType: z.array(z.object({ type: z.string(), value: z.number() })),
+  }),
+});
+export type FinanceOverview = z.infer<typeof FinanceOverview>;

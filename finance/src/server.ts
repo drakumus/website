@@ -7,6 +7,7 @@ import { plaid } from './plaid.js';
 import { encryptToken, decryptToken } from './crypto.js';
 import { pool, bootstrap } from './db.js';
 import { syncAll } from './sync.js';
+import { overview } from './reads.js';
 
 // True only when this file is the process entry point (prod `tsx src/server.ts` or
 // `node dist/server.js`), false when imported by a test. Gates listen() + logging below.
@@ -32,6 +33,20 @@ app.get('/status', async (_req, reply) => {
     return { configured: true, items: rows };
   } catch {
     return reply.code(503).send({ configured: true, items: [], error: 'database unavailable' });
+  }
+});
+
+// The dashboard read model: net worth, spend by merchant/category/month, recurring, and holdings,
+// over the last `days` (default 90). Read-only aggregation from Postgres.
+app.get('/overview', async (req, reply) => {
+  if (!configured) return reply.code(503).send({ error: 'unconfigured' });
+  const raw = Number((req.query as { days?: string }).days ?? 90);
+  const days = Math.min(Math.max(Number.isFinite(raw) ? raw : 90, 1), 730);
+  try {
+    return await overview(days);
+  } catch (err) {
+    app.log.error(err);
+    return reply.code(503).send({ error: 'database unavailable' });
   }
 });
 
