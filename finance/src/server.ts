@@ -2,14 +2,13 @@ import Fastify from 'fastify';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { CountryCode, Products } from 'plaid';
-import { Registry } from './metrics.js';
 import { config, configured } from './config.js';
 import { plaid } from './plaid.js';
 import { encryptToken } from './crypto.js';
 import { pool, bootstrap } from './db.js';
 
-// True only when this file is the process entry point (prod `node dist/server.js` or
-// `tsx src/server.ts`), false when imported by a test. Gates listen() + logging below.
+// True only when this file is the process entry point (prod `tsx src/server.ts` or
+// `node dist/server.js`), false when imported by a test. Gates listen() + logging below.
 const isEntry = path.resolve(process.argv[1] ?? '') === fileURLToPath(import.meta.url);
 
 // Finance backend (see ~/specs/finance-dashboard.md). The only process that holds the Plaid
@@ -18,22 +17,8 @@ const isEntry = path.resolve(process.argv[1] ?? '') === fileURLToPath(import.met
 // unconfigured, mirroring ha-broker's gating on HA_TOKEN.
 const app = Fastify({ logger: isEntry });
 
-const registry = new Registry();
-const linkExchanges = registry.counter(
-  'zoci_finance_link_exchanges_total',
-  'Plaid Items linked via public-token exchange.',
-);
-const plaidErrors = registry.counter(
-  'zoci_finance_plaid_errors_total',
-  'Plaid API calls that failed, by stage.',
-);
-
 // Liveness only: no Plaid or DB call, so the container is healthy before credentials are set.
 app.get('/health', async () => ({ status: 'ok' }));
-
-app.get('/metrics', async (_req, reply) =>
-  reply.type('text/plain; version=0.0.4').send(registry.expose()),
-);
 
 // Configuration + linked-item summary for the dashboard shell. Reports unconfigured rather than
 // erroring when credentials are missing, and tolerates a database that is not up yet.
@@ -66,7 +51,6 @@ app.post('/link/token/create', async (_req, reply) => {
     return { link_token: res.data.link_token, expiration: res.data.expiration };
   } catch (err) {
     app.log.error(err);
-    plaidErrors.inc({ stage: 'link_token_create' });
     return reply.code(502).send({ error: 'link_token_create failed' });
   }
 });
@@ -106,11 +90,9 @@ app.post('/link/exchange', async (req, reply) => {
          last_error = null`,
       [itemId, institutionId, institutionName, encryptToken(accessToken)],
     );
-    linkExchanges.inc();
     return { item_id: itemId, institution: institutionName };
   } catch (err) {
     app.log.error(err);
-    plaidErrors.inc({ stage: 'exchange' });
     return reply.code(502).send({ error: 'exchange failed' });
   }
 });
