@@ -148,11 +148,12 @@ export default function FinanceApp() {
 
   const startLink = useCallback(async (itemId?: string) => {
     const path = itemId ? '/api/link/token/update' : '/api/link/token/create';
-    const res = await fetch(path, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: itemId ? JSON.stringify({ item_id: itemId }) : undefined,
-    });
+    // Only send a JSON body (and content-type) for update mode; create takes none. A POST with an
+    // application/json content-type but an empty body is rejected 400 by Fastify before the handler.
+    const init: RequestInit = itemId
+      ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ item_id: itemId }) }
+      : { method: 'POST' };
+    const res = await fetch(path, init);
     const data = (await res.json()) as { link_token?: string };
     if (data.link_token) {
       localStorage.setItem(SAVED_TOKEN, data.link_token);
