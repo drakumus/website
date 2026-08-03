@@ -27,6 +27,11 @@ STATE = os.environ.get("AUDIT_STATE", os.path.join(REPO, "audit", ".audit-offset
 RETAIN_S = 180 * 86400  # 6 months
 GUEST_VHOST = "guest.zoci.me"
 
+# cron runs with a minimal PATH; ensure `tailscale` is findable (mirrors the collectors, which
+# guard PATH because binaries may not be on cron's default path). Without this, whois would fail
+# silently and every private-vhost record would lose its device identity.
+os.environ["PATH"] = os.environ.get("PATH", "") + ":/usr/local/bin:/usr/bin:/bin:/sbin:/usr/sbin"
+
 
 def to_epoch(ts):
     if isinstance(ts, (int, float)):

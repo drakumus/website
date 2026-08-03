@@ -94,7 +94,7 @@ export type AdminVerdict = z.infer<typeof AdminVerdict>;
 
 /**
  * GET /api/health-dot (public): the single aggregate health status vended to the public front
- * page. The ONLY health signal that crosses to zoci.me — no per-service or internal detail. The
+ * page. The ONLY health signal that crosses to zoci.me: no per-service or internal detail. The
  * page renders green/red/gray and treats a stale updatedAt as "unknown".
  */
 export const HealthDot = z.object({

@@ -160,10 +160,6 @@ def dashboard(uid, title, panels, links=None):
             "time": {"from": "now-6h", "to": "now"}, "links": links or [], "panels": panels}
 
 
-def drill_url(system):
-    return f"/grafana/d/zoci-sys-{system}/system-{system}?kiosk&${{__url_time_range}}"
-
-
 # --------------------------------------------------------------------------- General
 def system_band(p, system, containers, y):
     """One system group: a titled row, its health tiles (aggregate + per-container up/down), then
@@ -287,11 +283,6 @@ def build_system(system, containers):
         y += 7
 
     return dashboard(f"zoci-sys-{system}", f"System · {system}", p)
-
-
-def back_link():
-    return [{"title": "General", "type": "link", "url": "/grafana/d/zoci-general/general?kiosk&${__url_time_range}",
-             "icon": "dashboard", "keepTime": True, "targetBlank": False}]
 
 
 def write(name, obj, tag_system=False):

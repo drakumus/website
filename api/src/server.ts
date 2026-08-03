@@ -183,7 +183,7 @@ metricsApp.get('/metrics', async (_req, reply) => {
 
 // Admin data listener: the FULL verdict (and, later, the recent-access panel) on an internal-only
 // port that ONLY the tailnet-gated admin.zoci.me vhost proxies. It is never on the public :8000
-// listener, so zoci.me/api/verdict cannot reach it — the public/admin split is structural, not a
+// listener, so zoci.me/api/verdict cannot reach it; the public/admin split is structural, not a
 // header check. Only the one-bit /health-dot crosses to the public site.
 const adminApp = Fastify({ logger: false });
 adminApp.get('/verdict', async (_req, reply) => {
@@ -199,10 +199,17 @@ adminApp.get('/verdict', async (_req, reply) => {
 adminApp.get('/recent-access', async (_req, reply) => {
   try {
     const lines = (await readFile(ACCESS_FILE, 'utf8')).trim().split('\n').filter(Boolean);
-    return lines
-      .slice(-50)
-      .reverse()
-      .map((l) => JSON.parse(l));
+    const out: unknown[] = [];
+    for (const l of lines.slice(-50).reverse()) {
+      // Skip a malformed line (e.g. a partial write racing the processor) rather than dropping the
+      // whole result.
+      try {
+        out.push(JSON.parse(l));
+      } catch {
+        /* ignore this line */
+      }
+    }
+    return out;
   } catch {
     return reply.send([]);
   }

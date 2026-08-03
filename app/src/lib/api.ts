@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { HealthResponse, SystemStatus, HealthDot } from '@zoci/shared';
+import { HealthResponse, HealthDot } from '@zoci/shared';
 
 /** Tiny demo of the shared-types API wiring (site spec §6). */
 export function useApiHealth() {
@@ -36,28 +36,4 @@ export function useHealthDot(intervalMs = 30000): HealthDot | null {
     };
   }, [intervalMs]);
   return dot;
-}
-
-/** Home-server container health, polled for the landing dashboard. null = still loading. */
-export function useSystemStatus(intervalMs = 15000) {
-  const [status, setStatus] = useState<SystemStatus | null>(null);
-  useEffect(() => {
-    let active = true;
-    const load = () =>
-      fetch('/api/status')
-        .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`status ${r.status}`))))
-        .then((d) => {
-          if (active) setStatus(SystemStatus.parse(d));
-        })
-        .catch(() => {
-          if (active) setStatus({ containers: [] });
-        });
-    load();
-    const id = setInterval(load, intervalMs);
-    return () => {
-      active = false;
-      clearInterval(id);
-    };
-  }, [intervalMs]);
-  return status;
 }

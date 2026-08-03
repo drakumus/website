@@ -13,6 +13,9 @@ dist-admin/
 build/
 *.tsbuildinfo
 
+# Generated: shared metrics module staged into the standalone ha-broker build (make stage-shared)
+/ha-broker/src/metrics.ts
+
 # Env / secrets (never commit)
 .env
 .env.*
