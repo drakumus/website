@@ -14,19 +14,10 @@
     "from": "now-6h",
     "to": "now"
   },
-  "links": [
-    {
-      "title": "General",
-      "type": "link",
-      "url": "/grafana/d/zoci-general/general?kiosk&${__url_time_range}",
-      "icon": "dashboard",
-      "keepTime": true,
-      "targetBlank": false
-    }
-  ],
+  "links": [],
   "panels": [
     {
-      "id": 125,
+      "id": 139,
       "type": "text",
       "title": "finance",
       "gridPos": {

@@ -1,11 +1,24 @@
 import { useEffect, useRef, useState } from 'react';
-import { Box, Container, Title, Text, Group, Stack, Badge } from '@mantine/core';
+import { Box, Container, Title, Text, Group, Stack, Badge, Tabs } from '@mantine/core';
 import { motion } from 'motion/react';
 import type { AdminVerdict, AdminVerdictProblem } from '@zoci/shared';
 
-// Grafana is embedded (iframe) under the same admin.zoci.me origin at /grafana; the themed frame
-// wraps its panels. Verdict data comes from api on the admin surface.
-const GRAFANA_SRC = '/grafana/d/zoci-general/general?kiosk&theme=dark';
+// Grafana dashboards embedded (iframe) under the same admin.zoci.me origin at /grafana; the themed
+// frame wraps them. The tab bar switches which dashboard the iframe shows, so a drill-down is one
+// click from anywhere (no round-trip through General). Mirrors the SYSTEMS taxonomy in
+// infra/grafana/gen-dashboards.py; Grafana matches by uid, so the URL slug is arbitrary.
+const DASHBOARDS: { label: string; uid: string }[] = [
+  { label: 'General', uid: 'zoci-general' },
+  { label: 'edge', uid: 'zoci-sys-edge' },
+  { label: 'web', uid: 'zoci-sys-web' },
+  { label: 'guest', uid: 'zoci-sys-guest' },
+  { label: 'admin', uid: 'zoci-sys-admin' },
+  { label: 'metrics', uid: 'zoci-sys-metrics' },
+  { label: 'media', uid: 'zoci-sys-media' },
+  { label: 'AI', uid: 'zoci-sys-AI' },
+  { label: 'finance', uid: 'zoci-sys-finance' },
+];
+const grafanaSrc = (uid: string) => `/grafana/d/${uid}/d?kiosk&theme=dark`;
 const VERDICT_URL = '/api/verdict';
 
 const LOADING: AdminVerdict = { overall: 'unknown', summary: 'Checking system status…', updatedAt: null, problems: [] };
@@ -63,28 +76,34 @@ function useIframeAutoHeight(active: boolean) {
     const iframe = ref.current;
     if (!iframe) return;
     let poll: ReturnType<typeof setInterval> | undefined;
-    const measure = () => {
+    const measure = (reset: boolean) => {
       const doc = iframe.contentDocument;
       if (!doc) return;
+      // On a fresh load (initial or tab switch) collapse first so scrollHeight reports the new
+      // dashboard's true content height even when it is shorter than the current iframe (it clamps
+      // to the viewport otherwise, leaving dead space). During the growth poll, plain measure.
+      if (reset) iframe.style.height = '0px';
       const h = doc.documentElement.scrollHeight;
-      if (h && Math.abs(h - iframe.offsetHeight) > 1) iframe.style.height = `${h}px`;
+      if (!h) return;
+      if (reset || Math.abs(h - iframe.offsetHeight) > 1) iframe.style.height = `${h}px`;
     };
     const onLoad = () => {
-      measure();
+      measure(true);
       clearInterval(poll);
       let n = 0;
       // Panels render progressively; track the growing height for ~16s, then settle.
       poll = setInterval(() => {
-        measure();
+        measure(false);
         if (++n > 40) clearInterval(poll);
       }, 400);
     };
+    const onResize = () => measure(false);
     iframe.addEventListener('load', onLoad);
-    window.addEventListener('resize', measure);
+    window.addEventListener('resize', onResize);
     if (iframe.contentDocument?.readyState === 'complete') onLoad();
     return () => {
       iframe.removeEventListener('load', onLoad);
-      window.removeEventListener('resize', measure);
+      window.removeEventListener('resize', onResize);
       clearInterval(poll);
     };
   }, [active]);
@@ -128,6 +147,7 @@ export default function AdminDashboard() {
   const preview = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('preview');
   const v = useVerdict(preview);
   const frameRef = useIframeAutoHeight(!preview);
+  const [dashUid, setDashUid] = useState('zoci-general');
   const problems = [...v.problems].sort((a, b) => (SEV_RANK[a.severity] ?? 9) - (SEV_RANK[b.severity] ?? 9));
   const when = v.updatedAt ? `updated ${new Date(v.updatedAt).toLocaleTimeString()}` : '';
 
@@ -187,24 +207,45 @@ export default function AdminDashboard() {
 
         <Box mt="md">
           <FrameCard delay={0.12} p="0.5rem">
-            <Text fz="0.72rem" fw={700} tt="uppercase" c="var(--gold-text)" style={{ letterSpacing: '0.07em' }} m="0.35rem 0.5rem 0.5rem">
-              Metrics &amp; history
-            </Text>
             {preview ? (
-              <Box style={{ height: 480, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Text c="dimmed">Grafana panels embed here.</Text>
-              </Box>
+              <>
+                <Text fz="0.72rem" fw={700} tt="uppercase" c="var(--gold-text)" style={{ letterSpacing: '0.07em' }} m="0.35rem 0.5rem 0.5rem">
+                  Metrics &amp; history
+                </Text>
+                <Box style={{ height: 480, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Text c="dimmed">Grafana panels embed here.</Text>
+                </Box>
+              </>
             ) : (
-              <iframe
-                ref={frameRef}
-                title="System metrics"
-                src={GRAFANA_SRC}
-                scrolling="no"
-                // Start shorter than the dashboard so scrollHeight reports true content height (it
-                // clamps to the viewport when the iframe is taller). On load the effect sizes the
-                // iframe to the full grid height at once, so every panel is in-viewport and renders.
-                style={{ width: '100%', height: 600, border: 0, display: 'block', background: 'var(--panel)', overflow: 'hidden' }}
-              />
+              <>
+                <Tabs
+                  value={dashUid}
+                  onChange={(val) => val && setDashUid(val)}
+                  variant="default"
+                  color="maroon"
+                  keepMounted={false}
+                  m="0.35rem 0.4rem 0.6rem"
+                >
+                  <Tabs.List>
+                    {DASHBOARDS.map((d) => (
+                      <Tabs.Tab key={d.uid} value={d.uid} fz="0.85rem">
+                        {d.label}
+                      </Tabs.Tab>
+                    ))}
+                  </Tabs.List>
+                </Tabs>
+                <iframe
+                  ref={frameRef}
+                  title="System metrics"
+                  src={grafanaSrc(dashUid)}
+                  scrolling="no"
+                  // Start shorter than the dashboard so scrollHeight reports true content height (it
+                  // clamps to the viewport when the iframe is taller). On load (and on every tab
+                  // switch) the effect sizes the iframe to the full grid height, so every panel is
+                  // in-viewport and renders, with no inner scrollbar.
+                  style={{ width: '100%', height: 600, border: 0, display: 'block', background: 'var(--panel)', overflow: 'hidden' }}
+                />
+              </>
             )}
           </FrameCard>
         </Box>

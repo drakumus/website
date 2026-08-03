@@ -14,19 +14,10 @@
     "from": "now-6h",
     "to": "now"
   },
-  "links": [
-    {
-      "title": "General",
-      "type": "link",
-      "url": "/grafana/d/zoci-general/general?kiosk&${__url_time_range}",
-      "icon": "dashboard",
-      "keepTime": true,
-      "targetBlank": false
-    }
-  ],
+  "links": [],
   "panels": [
     {
-      "id": 81,
+      "id": 99,
       "type": "row",
       "title": "Health",
       "collapsed": false,
@@ -39,7 +30,7 @@
       "panels": []
     },
     {
-      "id": 82,
+      "id": 100,
       "type": "stat",
       "title": "admin-web",
       "datasource": {
@@ -118,7 +109,7 @@
       }
     },
     {
-      "id": 83,
+      "id": 101,
       "type": "stat",
       "title": "api",
       "datasource": {
@@ -197,17 +188,16 @@
       }
     },
     {
-      "id": 84,
-      "type": "stat",
-      "title": "Restarts (max)",
-      "description": "",
+      "id": 102,
+      "type": "table",
+      "title": "Restarts & uptime",
       "datasource": {
         "type": "prometheus",
         "uid": "victoriametrics"
       },
       "gridPos": {
         "h": 5,
-        "w": 6,
+        "w": 24,
         "x": 0,
         "y": 5
       },
@@ -217,114 +207,131 @@
             "type": "prometheus",
             "uid": "victoriametrics"
           },
-          "expr": "max(zoci_container_restart_count{container=~\"infra-admin-web-1|infra-api-1\"})",
-          "legendFormat": "",
-          "refId": "A",
+          "refId": "uptime",
+          "instant": true,
+          "format": "table",
           "editorMode": "code",
-          "range": true,
-          "instant": false
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "custom": {},
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "yellow",
-                "value": 1
-              },
-              {
-                "color": "red",
-                "value": 5
-              }
-            ]
-          }
+          "expr": "max by (container) (time() - zoci_container_start_time_seconds{container=~\"infra-admin-web-1|infra-api-1\"})"
         },
-        "overrides": []
-      },
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "textMode": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        }
-      }
-    },
-    {
-      "id": 85,
-      "type": "timeseries",
-      "title": "Uptime",
-      "description": "",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "victoriametrics"
-      },
-      "gridPos": {
-        "h": 5,
-        "w": 18,
-        "x": 6,
-        "y": 5
-      },
-      "targets": [
         {
           "datasource": {
             "type": "prometheus",
             "uid": "victoriametrics"
           },
-          "expr": "time() - zoci_container_start_time_seconds{container=~\"infra-admin-web-1|infra-api-1\"}",
-          "legendFormat": "{{container}}",
-          "refId": "A",
+          "refId": "restarts",
+          "instant": true,
+          "format": "table",
           "editorMode": "code",
-          "range": true,
-          "instant": false
+          "expr": "max by (container) (zoci_container_restart_count{container=~\"infra-admin-web-1|infra-api-1\"})"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          },
+          "refId": "exit",
+          "instant": true,
+          "format": "table",
+          "editorMode": "code",
+          "expr": "max by (container) (zoci_container_last_exit_code{container=~\"infra-admin-web-1|infra-api-1\"})"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "joinByField",
+          "options": {
+            "byField": "container",
+            "mode": "outer"
+          }
+        },
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "pattern": "^(container|Value.*)$"
+            }
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "renameByName": {
+              "container": "Container",
+              "Value #uptime": "Uptime",
+              "Value #restarts": "Restarts",
+              "Value #exit": "Exit code"
+            }
+          }
         }
       ],
       "fieldConfig": {
         "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
           "custom": {
-            "lineWidth": 2,
-            "fillOpacity": 8,
-            "showPoints": "never",
-            "spanNulls": true,
-            "axisBorderShow": false,
-            "gradientMode": "none"
-          },
-          "unit": "s"
+            "filterable": true,
+            "align": "auto"
+          }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Uptime"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "s"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Restarts"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "text",
+                      "value": null
+                    },
+                    {
+                      "color": "yellow",
+                      "value": 1
+                    },
+                    {
+                      "color": "red",
+                      "value": 5
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
       },
       "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "calcs": []
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
+        "showHeader": true,
+        "sortBy": [
+          {
+            "displayName": "Restarts",
+            "desc": true
+          }
+        ]
       }
     },
     {
-      "id": 86,
+      "id": 103,
       "type": "row",
       "title": "Resources",
       "collapsed": false,
@@ -337,7 +344,7 @@
       "panels": []
     },
     {
-      "id": 87,
+      "id": 104,
       "type": "timeseries",
       "title": "CPU %",
       "description": "",
@@ -395,7 +402,7 @@
       }
     },
     {
-      "id": 88,
+      "id": 105,
       "type": "timeseries",
       "title": "Memory",
       "description": "",
@@ -453,7 +460,7 @@
       }
     },
     {
-      "id": 89,
+      "id": 106,
       "type": "timeseries",
       "title": "Network I/O",
       "description": "",
@@ -523,7 +530,7 @@
       }
     },
     {
-      "id": 90,
+      "id": 107,
       "type": "timeseries",
       "title": "Block I/O",
       "description": "",
@@ -593,7 +600,7 @@
       }
     },
     {
-      "id": 91,
+      "id": 108,
       "type": "row",
       "title": "API",
       "collapsed": false,
@@ -606,7 +613,7 @@
       "panels": []
     },
     {
-      "id": 92,
+      "id": 109,
       "type": "timeseries",
       "title": "Request rate by route",
       "description": "",
@@ -664,7 +671,7 @@
       }
     },
     {
-      "id": 93,
+      "id": 110,
       "type": "timeseries",
       "title": "p95 latency by route",
       "description": "",
@@ -722,7 +729,7 @@
       }
     },
     {
-      "id": 94,
+      "id": 111,
       "type": "timeseries",
       "title": "Error ratio (5xx)",
       "description": "",
@@ -780,7 +787,7 @@
       }
     },
     {
-      "id": 95,
+      "id": 112,
       "type": "timeseries",
       "title": "In-flight requests",
       "description": "",

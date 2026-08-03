@@ -111,12 +111,37 @@ def health_tile(title, x, y, w, h, expr, link=None):
                         "textMode": "value", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": False}}}
 
 
-def table(title, x, y, w, h, expr, desc=""):
-    return {"id": nid(), "type": "table", "title": title, "description": desc, "datasource": DS,
-            "gridPos": {"h": h, "w": w, "x": x, "y": y},
-            "targets": [{"datasource": DS, "expr": expr, "refId": "A", "editorMode": "code", "instant": True, "format": "table"}],
-            "fieldConfig": {"defaults": {"custom": {"filterable": True}}, "overrides": []},
-            "options": {"showHeader": True}}
+def status_table(title, x, y, w, h, containers):
+    """A per-container list of uptime + restarts + last exit code (clearer than a sawtooth uptime
+    graph). `max by (container)` drops instance/job so the join leaves clean columns."""
+    csel = f'{{container=~"{container_re(containers)}"}}'
+    targets = [
+        {"datasource": DS, "refId": "uptime", "instant": True, "format": "table", "editorMode": "code",
+         "expr": f'max by (container) (time() - zoci_container_start_time_seconds{csel})'},
+        {"datasource": DS, "refId": "restarts", "instant": True, "format": "table", "editorMode": "code",
+         "expr": f'max by (container) (zoci_container_restart_count{csel})'},
+        {"datasource": DS, "refId": "exit", "instant": True, "format": "table", "editorMode": "code",
+         "expr": f'max by (container) (zoci_container_last_exit_code{csel})'},
+    ]
+    transformations = [
+        {"id": "joinByField", "options": {"byField": "container", "mode": "outer"}},
+        {"id": "filterFieldsByName", "options": {"include": {"pattern": "^(container|Value.*)$"}}},
+        {"id": "organize", "options": {"renameByName": {
+            "container": "Container", "Value #uptime": "Uptime",
+            "Value #restarts": "Restarts", "Value #exit": "Exit code"}}},
+    ]
+    overrides = [
+        {"matcher": {"id": "byName", "options": "Uptime"}, "properties": [{"id": "unit", "value": "s"}]},
+        {"matcher": {"id": "byName", "options": "Restarts"},
+         "properties": [{"id": "custom.cellOptions", "value": {"type": "color-text"}},
+                        {"id": "thresholds", "value": {"mode": "absolute", "steps": [
+                            {"color": "text", "value": None}, {"color": "yellow", "value": 1}, {"color": "red", "value": 5}]}}]},
+    ]
+    return {"id": nid(), "type": "table", "title": title, "datasource": DS,
+            "gridPos": {"h": h, "w": w, "x": x, "y": y}, "targets": targets,
+            "transformations": transformations,
+            "fieldConfig": {"defaults": {"custom": {"filterable": True, "align": "auto"}}, "overrides": overrides},
+            "options": {"showHeader": True, "sortBy": [{"displayName": "Restarts", "desc": True}]}}
 
 
 def text_panel(title, x, y, w, h, md):
@@ -140,6 +165,31 @@ def drill_url(system):
 
 
 # --------------------------------------------------------------------------- General
+def system_band(p, system, containers, y):
+    """One system group: a titled row, its health tiles (aggregate + per-container up/down), then
+    that system's CPU% and Memory graphs. Each line fills 24 cols so Grafana's auto-compaction
+    can't pull the next system's panels up into a gap."""
+    p.append(row(system, y)); y += 1
+    AGG_W = 6
+    agg = (f'min(zoci_container_up{{container=~"{container_re(containers)}"}})'
+           if containers else 'min(zoci_container_up{container="__not_deployed__"})')
+    p.append(health_tile(system, 0, y, AGG_W, 4, agg))
+    if not containers:
+        p.append(text_panel("", AGG_W, y, 24 - AGG_W, 4, f"_{system}.zoci.me is not deployed yet._"))
+        return y + 4
+    x = AGG_W
+    n = len(containers)
+    for i, c in enumerate(containers):
+        w = (24 - AGG_W) // n if i < n - 1 else (24 - x)
+        p.append(health_tile(short(c), x, y, w, 4, f'zoci_container_up{{container="{c}"}}'))
+        x += w
+    y += 4
+    csel = f'{{container=~"{container_re(containers)}"}}'
+    p.append(ts("CPU %", 0, y, 12, 7, [(f'zoci_container_cpu_percent{csel}', "{{container}}")], unit="percent"))
+    p.append(ts("Memory", 12, y, 12, 7, [(f'zoci_container_memory_bytes{csel}', "{{container}}")], unit="bytes"))
+    return y + 7
+
+
 def build_general():
     p = []
     y = 0
@@ -160,44 +210,21 @@ def build_general():
                 unit="Bps", desc="Per-interface host throughput (loopback + container veths excluded)."))
     y += 7
 
-    # ---- Docker ----
+    # ---- Docker summary ----
     p.append(row("Docker", y)); y += 1
-    p.append(stat("Active containers", 0, y, 4, 8, "count(zoci_container_up == 1)",
+    p.append(stat("Active containers", 0, y, 4, 5, "count(zoci_container_up == 1)",
                   thresholds=[{"color": "green", "value": None}], desc="Running monitored containers."))
-    p.append(ts("Container CPU %", 4, y, 10, 8, [("zoci_container_cpu_percent", "{{container}}")], unit="percent"))
-    p.append(ts("Container memory", 14, y, 10, 8, [("zoci_container_memory_bytes", "{{container}}")], unit="bytes"))
-    y += 8
-    p.append(ts("Container network I/O", 0, y, 12, 7,
-                [("rate(zoci_container_network_receive_bytes_total[5m]) + rate(zoci_container_network_transmit_bytes_total[5m])", "{{container}}")],
-                unit="Bps", desc="Receive + transmit rate per container (host-networked containers report 0)."))
-    p.append(ts("Container block I/O", 12, y, 12, 7,
-                [("rate(zoci_container_blockio_read_bytes_total[5m]) + rate(zoci_container_blockio_write_bytes_total[5m])", "{{container}}")],
-                unit="Bps"))
-    y += 7
+    p.append(stat("Down", 4, y, 4, 5, "count(zoci_container_up == 0) or on() vector(0)",
+                  thresholds=[{"color": "green", "value": None}, {"color": "red", "value": 1}]))
+    p.append(ts("Total container CPU %", 8, y, 8, 5, [("sum(zoci_container_cpu_percent)", "total")], unit="percent"))
+    p.append(ts("Total container memory", 16, y, 8, 5, [("sum(zoci_container_memory_bytes)", "total")], unit="bytes"))
+    y += 5
 
-    # ---- Systems (health rollup) ----
-    # Each system is one full-width (24-col) band: aggregate tile + a tile per container. Filling
-    # the full width matters: Grafana auto-compacts panels into horizontal gaps, so a short band
-    # would pull the next system's tiles up into it. The aggregate is min(up) over the system's
-    # containers (red if any down); the panel title carries the name (textMode shows only up/down).
-    p.append(row("Systems", y)); y += 1
-    AGG_W = 6
+    # ---- Per-system groups: status + utilization grouped by system ----
     for system, containers in SYSTEMS.items():
-        agg = (f'min(zoci_container_up{{container=~"{container_re(containers)}"}})'
-               if containers else 'min(zoci_container_up{container="__not_deployed__"})')
-        p.append(health_tile(system, 0, y, AGG_W, 4, agg, link=drill_url(system)))
-        x = AGG_W
-        n = len(containers)
-        for i, c in enumerate(containers):
-            w = (24 - AGG_W) // n if i < n - 1 else (24 - x)  # last tile fills the remainder
-            p.append(health_tile(short(c), x, y, w, 4, f'zoci_container_up{{container="{c}"}}',
-                                  link=drill_url(system)))
-            x += w
-        y += 4
+        y = system_band(p, system, containers, y)
 
-    links = [{"title": "Drill-downs", "type": "dashboards", "tags": ["zoci-system"], "asDropdown": True,
-              "includeVars": True, "keepTime": True}]
-    return dashboard("zoci-general", "General", p, links)
+    return dashboard("zoci-general", "General", p)
 
 
 # --------------------------------------------------------------------------- Drill-downs
@@ -208,7 +235,7 @@ def build_system(system, containers):
         p.append(text_panel(f"{system}", 0, 0, 24, 4,
                              f"### {system}\n\n`{system}.zoci.me` has no container deployed yet. When it lands, it "
                              f"joins the systems taxonomy in `infra/grafana/gen-dashboards.py` and this drill-down fills in."))
-        return dashboard(f"zoci-sys-{system}", f"System · {system}", p, back_link())
+        return dashboard(f"zoci-sys-{system}", f"System · {system}", p)
 
     cre = container_re(containers)
     csel = f'{{container=~"{cre}"}}'
@@ -220,10 +247,9 @@ def build_system(system, containers):
         p.append(health_tile(short(c), x, y, 4, 4, f'zoci_container_up{{container="{c}"}}'))
         x += 4
     y += 4
-    p.append(stat("Restarts (max)", 0, y, 6, 5, f'max(zoci_container_restart_count{csel})',
-                  thresholds=[{"color": "green", "value": None}, {"color": "yellow", "value": 1}, {"color": "red", "value": 5}]))
-    p.append(ts("Uptime", 6, y, 18, 5, [(f'time() - zoci_container_start_time_seconds{csel}', "{{container}}")], unit="s"))
-    y += 5
+    th = len(containers) + 3  # panel title + header + one grid row per container
+    p.append(status_table("Restarts & uptime", 0, y, 24, th, containers))
+    y += th
 
     # ---- Resources ----
     p.append(row("Resources", y)); y += 1
@@ -260,7 +286,7 @@ def build_system(system, containers):
                     [("histogram_quantile(0.95, sum by (le) (rate(zoci_ha_roundtrip_seconds_bucket[5m])))", "p95")], unit="s"))
         y += 7
 
-    return dashboard(f"zoci-sys-{system}", f"System · {system}", p, back_link())
+    return dashboard(f"zoci-sys-{system}", f"System · {system}", p)
 
 
 def back_link():

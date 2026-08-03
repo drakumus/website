@@ -14,19 +14,10 @@
     "from": "now-6h",
     "to": "now"
   },
-  "links": [
-    {
-      "title": "General",
-      "type": "link",
-      "url": "/grafana/d/zoci-general/general?kiosk&${__url_time_range}",
-      "icon": "dashboard",
-      "keepTime": true,
-      "targetBlank": false
-    }
-  ],
+  "links": [],
   "panels": [
     {
-      "id": 96,
+      "id": 113,
       "type": "row",
       "title": "Health",
       "collapsed": false,
@@ -39,7 +30,7 @@
       "panels": []
     },
     {
-      "id": 97,
+      "id": 114,
       "type": "stat",
       "title": "victoria-metrics",
       "datasource": {
@@ -118,7 +109,7 @@
       }
     },
     {
-      "id": 98,
+      "id": 115,
       "type": "stat",
       "title": "node-exporter",
       "datasource": {
@@ -197,7 +188,7 @@
       }
     },
     {
-      "id": 99,
+      "id": 116,
       "type": "stat",
       "title": "grafana",
       "datasource": {
@@ -276,17 +267,16 @@
       }
     },
     {
-      "id": 100,
-      "type": "stat",
-      "title": "Restarts (max)",
-      "description": "",
+      "id": 117,
+      "type": "table",
+      "title": "Restarts & uptime",
       "datasource": {
         "type": "prometheus",
         "uid": "victoriametrics"
       },
       "gridPos": {
-        "h": 5,
-        "w": 6,
+        "h": 6,
+        "w": 24,
         "x": 0,
         "y": 5
       },
@@ -296,114 +286,131 @@
             "type": "prometheus",
             "uid": "victoriametrics"
           },
-          "expr": "max(zoci_container_restart_count{container=~\"infra-victoria-metrics-1|infra-node-exporter-1|infra-grafana-1\"})",
-          "legendFormat": "",
-          "refId": "A",
+          "refId": "uptime",
+          "instant": true,
+          "format": "table",
           "editorMode": "code",
-          "range": true,
-          "instant": false
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "custom": {},
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "yellow",
-                "value": 1
-              },
-              {
-                "color": "red",
-                "value": 5
-              }
-            ]
-          }
+          "expr": "max by (container) (time() - zoci_container_start_time_seconds{container=~\"infra-victoria-metrics-1|infra-node-exporter-1|infra-grafana-1\"})"
         },
-        "overrides": []
-      },
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "textMode": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        }
-      }
-    },
-    {
-      "id": 101,
-      "type": "timeseries",
-      "title": "Uptime",
-      "description": "",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "victoriametrics"
-      },
-      "gridPos": {
-        "h": 5,
-        "w": 18,
-        "x": 6,
-        "y": 5
-      },
-      "targets": [
         {
           "datasource": {
             "type": "prometheus",
             "uid": "victoriametrics"
           },
-          "expr": "time() - zoci_container_start_time_seconds{container=~\"infra-victoria-metrics-1|infra-node-exporter-1|infra-grafana-1\"}",
-          "legendFormat": "{{container}}",
-          "refId": "A",
+          "refId": "restarts",
+          "instant": true,
+          "format": "table",
           "editorMode": "code",
-          "range": true,
-          "instant": false
+          "expr": "max by (container) (zoci_container_restart_count{container=~\"infra-victoria-metrics-1|infra-node-exporter-1|infra-grafana-1\"})"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          },
+          "refId": "exit",
+          "instant": true,
+          "format": "table",
+          "editorMode": "code",
+          "expr": "max by (container) (zoci_container_last_exit_code{container=~\"infra-victoria-metrics-1|infra-node-exporter-1|infra-grafana-1\"})"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "joinByField",
+          "options": {
+            "byField": "container",
+            "mode": "outer"
+          }
+        },
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "pattern": "^(container|Value.*)$"
+            }
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "renameByName": {
+              "container": "Container",
+              "Value #uptime": "Uptime",
+              "Value #restarts": "Restarts",
+              "Value #exit": "Exit code"
+            }
+          }
         }
       ],
       "fieldConfig": {
         "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
           "custom": {
-            "lineWidth": 2,
-            "fillOpacity": 8,
-            "showPoints": "never",
-            "spanNulls": true,
-            "axisBorderShow": false,
-            "gradientMode": "none"
-          },
-          "unit": "s"
+            "filterable": true,
+            "align": "auto"
+          }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Uptime"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "s"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Restarts"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "text",
+                      "value": null
+                    },
+                    {
+                      "color": "yellow",
+                      "value": 1
+                    },
+                    {
+                      "color": "red",
+                      "value": 5
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
       },
       "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "calcs": []
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
+        "showHeader": true,
+        "sortBy": [
+          {
+            "displayName": "Restarts",
+            "desc": true
+          }
+        ]
       }
     },
     {
-      "id": 102,
+      "id": 118,
       "type": "row",
       "title": "Resources",
       "collapsed": false,
@@ -411,12 +418,12 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 10
+        "y": 11
       },
       "panels": []
     },
     {
-      "id": 103,
+      "id": 119,
       "type": "timeseries",
       "title": "CPU %",
       "description": "",
@@ -428,7 +435,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 11
+        "y": 12
       },
       "targets": [
         {
@@ -474,7 +481,7 @@
       }
     },
     {
-      "id": 104,
+      "id": 120,
       "type": "timeseries",
       "title": "Memory",
       "description": "",
@@ -486,7 +493,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 11
+        "y": 12
       },
       "targets": [
         {
@@ -532,7 +539,7 @@
       }
     },
     {
-      "id": 105,
+      "id": 121,
       "type": "timeseries",
       "title": "Network I/O",
       "description": "",
@@ -544,7 +551,7 @@
         "h": 7,
         "w": 12,
         "x": 0,
-        "y": 19
+        "y": 20
       },
       "targets": [
         {
@@ -602,7 +609,7 @@
       }
     },
     {
-      "id": 106,
+      "id": 122,
       "type": "timeseries",
       "title": "Block I/O",
       "description": "",
@@ -614,7 +621,7 @@
         "h": 7,
         "w": 12,
         "x": 12,
-        "y": 19
+        "y": 20
       },
       "targets": [
         {
