@@ -1,7 +1,7 @@
 // Boundary + templating invariants for the api. The api is a dumb relay in front of ha-broker:
 // it must hard-require the oauth2-proxy auth header, forward the opaque {key,value} without ever
-// injecting an entity_id, map the status file against the canonical SERVICES list, and HTML-escape
-// the (attacker-influenceable) email without treating it as a String.replace pattern.
+// injecting an entity_id, and HTML-escape the (attacker-influenceable) email without treating it
+// as a String.replace pattern.
 //
 // Run: `npm test -w api` (node --test via tsx). No real broker; `fetch` is stubbed.
 import { test, beforeEach, after } from 'node:test';
@@ -9,17 +9,16 @@ import assert from 'node:assert/strict';
 import { writeFile, unlink, mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { HealthResponse, SystemStatus, SERVICES } from '@zoci/shared';
+import { HealthResponse } from '@zoci/shared';
 
-// Env is read at module load, so configure it before importing the app. STATUS_FILE points at a
-// temp file this suite owns; BROKER_URL is a sentinel host so proxy calls are easy to assert;
-// GUEST_DEV is unset so the missing-header guard is exercised (prod has no GUEST_DEV).
+// Env is read at module load, so configure it before importing the app. STATUS_DIR is a temp dir
+// this suite owns (the verdict/dot/access files live in it); BROKER_URL is a sentinel host so proxy
+// calls are easy to assert; GUEST_DEV is unset so the missing-header guard is exercised.
 const STATUS_DIR = await mkdtemp(path.join(tmpdir(), 'zoci-api-'));
-const STATUS_FILE = path.join(STATUS_DIR, 'status.json');
 const VERDICT_FILE = path.join(STATUS_DIR, 'verdict.json');
 const DOT_FILE = path.join(STATUS_DIR, 'health-dot.json');
 const ACCESS_FILE = path.join(STATUS_DIR, 'access.jsonl');
-process.env.STATUS_FILE = STATUS_FILE;
+process.env.STATUS_DIR = STATUS_DIR;
 process.env.VERDICT_FILE = VERDICT_FILE;
 process.env.DOT_FILE = DOT_FILE;
 process.env.ACCESS_FILE = ACCESS_FILE;
@@ -129,29 +128,6 @@ test('/health is ok and matches the shared schema', async () => {
   const res = await app.inject({ method: 'GET', url: '/health' });
   assert.equal(res.statusCode, 200);
   assert.deepEqual(HealthResponse.parse(res.json()), { status: 'ok' });
-});
-
-test('/status maps the running set against the canonical SERVICES list', async () => {
-  await writeFile(STATUS_FILE, JSON.stringify({ running: ['caddy', 'infra-api-1'], updatedAt: '2026-01-01T00:00:00Z' }));
-  const res = await app.inject({ method: 'GET', url: '/status' });
-  assert.equal(res.statusCode, 200);
-  const body = SystemStatus.parse(res.json());
-  assert.equal(body.updatedAt, '2026-01-01T00:00:00Z');
-  assert.equal(body.containers.length, SERVICES.length);
-  const running = Object.fromEntries(body.containers.map((c) => [c.name, c.running]));
-  assert.equal(running['Caddy'], true);
-  assert.equal(running['API'], true);
-  assert.equal(running['Web'], false);
-  assert.equal(running['Jellyfin'], false);
-});
-
-test('/status reports all down (no 500) when the status file is missing', async () => {
-  await unlink(STATUS_FILE).catch(() => {});
-  const res = await app.inject({ method: 'GET', url: '/status' });
-  assert.equal(res.statusCode, 200);
-  const body = SystemStatus.parse(res.json());
-  assert.ok(body.containers.every((c) => c.running === false));
-  assert.equal(body.updatedAt, undefined);
 });
 
 test('/health-dot serves the public aggregate dot, and unknown when the file is missing', async () => {

@@ -12,34 +12,6 @@ export const HealthResponse = z.object({
 });
 export type HealthResponse = z.infer<typeof HealthResponse>;
 
-/** GET /api/status: home-server container health for the landing dashboard. */
-export const ContainerStatus = z.object({
-  name: z.string(),
-  running: z.boolean(),
-});
-export type ContainerStatus = z.infer<typeof ContainerStatus>;
-
-export const SystemStatus = z.object({
-  containers: z.array(ContainerStatus),
-  // ISO timestamp of when the underlying status file was last written (for staleness).
-  updatedAt: z.string().optional(),
-});
-export type SystemStatus = z.infer<typeof SystemStatus>;
-
-/**
- * Canonical home-server services for the landing dashboard: display name + the exact
- * Docker container name to match. Single source of truth: the api maps the cron list
- * of running containers against this, and the frontend uses the names as placeholders.
- * (Compose project name is `infra`, hence the `infra-<svc>-1` container names.)
- */
-export const SERVICES = [
-  { name: 'Caddy', container: 'caddy' }, // pinned via container_name (compose)
-  { name: 'Web', container: 'infra-web-1' },
-  { name: 'API', container: 'infra-api-1' },
-  { name: 'Jellyfin', container: 'jellyfin' },
-  { name: 'Hermes', container: 'hermes' },
-] as const;
-
 /** Portfolio project (data-driven card + modal). See site spec §3. */
 export const ProjectLink = z.object({
   label: z.string(),

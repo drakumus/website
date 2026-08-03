@@ -75,9 +75,10 @@ services:
       - "127.0.0.1:8000:8000"
       - "127.0.0.1:9102:9102"
     environment:
-      - STATUS_FILE=/status/status.json
-    # Read-only container-health file, written by the host cron (infra/status/write-status.sh).
-    # No Docker socket here: the internet-facing api only reads a plain file.
+      - STATUS_DIR=/status
+    # Read-only mount of the host-written status files (verdict.json, health-dot.json, access.jsonl,
+    # from write-verdict.py / write-access-audit.py). No Docker socket here: the internet-facing api
+    # only reads plain files.
     volumes:
       - ./status:/status:ro
     # Hardening (matches ha-broker): non-root (Dockerfile USER node), read-only rootfs with a

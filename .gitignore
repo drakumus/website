@@ -38,10 +38,6 @@ build/
 # Guest email allowlist (real Google addresses): never commit; template is emails.txt.example
 /infra/oauth2-proxy/emails.txt
 
-# Generated container-health file (written by the status cron), plus its temp files
-/infra/status/status.json
-/infra/status/.status.*
-
 # Generated metrics: textfile-collector .prom output (written by host collectors) + temp files.
 /infra/metrics/textfile/*.prom
 /infra/metrics/textfile/.*.prom.*

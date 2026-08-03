@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
-import { HealthResponse, SystemStatus, SERVICES, HealthDot } from '@zoci/shared';
+import { HealthResponse, HealthDot } from '@zoci/shared';
 import { Registry } from '@zoci/shared/metrics';
 
 // True only when this file is the process entry point (prod `node dist/server.js` or
@@ -60,19 +60,12 @@ const GUEST_HTML = readFileSync(path.resolve(dir, 'guest.html'), 'utf8')
   .replace('/*__THEME__*/', THEME_CSS)
   .replace('__BASE__', GUEST_BASE);
 
-// Container health is produced out-of-band by a host cron (infra/status/write-status.sh),
-// which writes the names of all running containers to a file. The api reads that file and
-// maps it against the canonical SERVICES list; it never talks to Docker, so the
-// internet-facing container needs no Docker socket. Prod sets STATUS_FILE via compose; the
-// dev default points at the in-repo file.
-const STATUS_FILE =
-  process.env.STATUS_FILE ??
-  path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../infra/status/status.json');
-
-// The host-side verdict evaluator (infra/status/write-verdict.py) writes these next to the status
-// file, in the same read-only ./status mount. The public dot is served here on the main (public)
-// listener; the FULL verdict is served only on the admin listener below, never on :8000.
-const STATUS_DIR = path.dirname(STATUS_FILE);
+// The host-side writers (write-verdict.py, write-access-audit.py) drop these files into the
+// read-only ./status mount. api serves the public aggregate dot here on the main (public) listener;
+// the full verdict and access audit are served only on the admin listener below, never on :8000.
+const STATUS_DIR =
+  process.env.STATUS_DIR ??
+  path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../infra/status');
 const VERDICT_FILE = process.env.VERDICT_FILE ?? path.join(STATUS_DIR, 'verdict.json');
 const DOT_FILE = process.env.DOT_FILE ?? path.join(STATUS_DIR, 'health-dot.json');
 const ACCESS_FILE = process.env.ACCESS_FILE ?? path.join(STATUS_DIR, 'access.jsonl');
@@ -92,27 +85,6 @@ app.get('/health-dot', async (): Promise<HealthDot> => {
   }
 });
 
-app.get('/status', async (): Promise<SystemStatus> => {
-  let running = new Set<string>();
-  let updatedAt: string | undefined;
-  try {
-    const parsed = JSON.parse(await readFile(STATUS_FILE, 'utf8')) as {
-      running?: unknown;
-      updatedAt?: unknown;
-    };
-    if (Array.isArray(parsed.running)) {
-      running = new Set(parsed.running.filter((x): x is string => typeof x === 'string'));
-    }
-    if (typeof parsed.updatedAt === 'string') updatedAt = parsed.updatedAt;
-  } catch (err) {
-    // Missing/unreadable file (cron not running yet): report all down rather than 500.
-    app.log.warn({ err }, 'could not read status file');
-  }
-  return {
-    containers: SERVICES.map((s) => ({ name: s.name, running: running.has(s.container) })),
-    updatedAt,
-  };
-});
 
 // Guest surface (secure-access.md §7.2). Reached ONLY via guest.zoci.me, where Caddy's
 // forward_auth (oauth2-proxy → Google) sets X-Auth-Request-Email and strips any client-sent
