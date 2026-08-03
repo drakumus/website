@@ -1,0 +1,25 @@
+{
+  "name": "finance",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Finance backend (see ~/specs/finance-dashboard.md): the only process that holds the Plaid credentials and the Postgres connection. Reachable only via the tailnet-only finance.zoci.me vhost. Standalone package (own lockfile), NOT a root workspace.",
+  "main": "dist/server.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "dev": "tsx watch src/server.ts",
+    "test": "node --import tsx --test test/*.test.ts"
+  },
+  "dependencies": {
+    "fastify": "^5.2.0",
+    "pg": "^8.22.0",
+    "plaid": "^45.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.2",
+    "@types/pg": "^8.11.10",
+    "tsx": "^4.19.2",
+    "typescript": "^7.0.2"
+  }
+}
