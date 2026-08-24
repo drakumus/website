@@ -19,6 +19,41 @@ const isEntry = path.resolve(process.argv[1] ?? '') === fileURLToPath(import.met
 // unconfigured, mirroring ha-broker's gating on HA_TOKEN.
 const app = Fastify({ logger: isEntry });
 
+// Failures are logged by shape, never as the raw error object: an AxiosError from the plaid SDK
+// enumerably carries the request config, whose headers hold the Plaid credentials and whose body
+// can hold a decrypted access token, and pino's error serializer copies every enumerable
+// property. Only the fields below ever reach the log.
+function logFailure(what: string, err: unknown): void {
+  const e = err as {
+    message?: string;
+    response?: { status?: number; data?: { error_code?: string; error_type?: string } };
+  };
+  app.log.error(
+    {
+      what,
+      message: e?.message,
+      status: e?.response?.status ?? null,
+      plaid_error_code: e?.response?.data?.error_code ?? null,
+      plaid_error_type: e?.response?.data?.error_type ?? null,
+    },
+    `${what} failed`,
+  );
+}
+
+// One in-flight guard shared by the scheduler and the on-demand /sync route, so a manual sync
+// cannot interleave with a scheduled run over the same stored cursors.
+let syncing = false;
+async function runSyncExclusive(): Promise<boolean> {
+  if (syncing) return false;
+  syncing = true;
+  try {
+    await syncAll();
+  } finally {
+    syncing = false;
+  }
+  return true;
+}
+
 // Liveness only: no Plaid or DB call, so the container is healthy before credentials are set.
 app.get('/health', async () => ({ status: 'ok' }));
 
@@ -45,7 +80,7 @@ app.get('/overview', async (req, reply) => {
   try {
     return await overview(days);
   } catch (err) {
-    app.log.error(err);
+    logFailure('overview', err);
     return reply.code(503).send({ error: 'database unavailable' });
   }
 });
@@ -66,7 +101,7 @@ app.post('/link/token/create', async (_req, reply) => {
     });
     return { link_token: res.data.link_token, expiration: res.data.expiration };
   } catch (err) {
-    app.log.error(err);
+    logFailure('link_token_create', err);
     return reply.code(502).send({ error: 'link_token_create failed' });
   }
 });
@@ -108,7 +143,7 @@ app.post('/link/exchange', async (req, reply) => {
     );
     return { item_id: itemId, institution: institutionName };
   } catch (err) {
-    app.log.error(err);
+    logFailure('exchange', err);
     return reply.code(502).send({ error: 'exchange failed' });
   }
 });
@@ -117,11 +152,18 @@ app.post('/link/exchange', async (req, reply) => {
 // The scheduler below calls the same syncAll on an interval; this route is the on-demand trigger.
 app.post('/sync', async (_req, reply) => {
   if (!configured) return reply.code(503).send({ error: 'unconfigured' });
-  await syncAll();
-  const { rows } = await pool.query(
-    'select item_id, institution_name, status, last_sync_at, last_error from items order by created_at',
-  );
-  return { items: rows };
+  try {
+    if (!(await runSyncExclusive())) {
+      return reply.code(409).send({ error: 'sync already in progress' });
+    }
+    const { rows } = await pool.query(
+      'select item_id, institution_name, status, last_sync_at, last_error from items order by created_at',
+    );
+    return { items: rows };
+  } catch (err) {
+    logFailure('sync', err);
+    return reply.code(503).send({ error: 'sync failed' });
+  }
 });
 
 // Update-mode Link token: re-authenticate an Item that went login_required, without re-linking from
@@ -145,7 +187,7 @@ app.post('/link/token/update', async (req, reply) => {
     });
     return { link_token: res.data.link_token, expiration: res.data.expiration };
   } catch (err) {
-    app.log.error(err);
+    logFailure('link_token_update', err);
     return reply.code(502).send({ error: 'link_token_update failed' });
   }
 });
@@ -166,27 +208,23 @@ app.post('/item/remove', async (req, reply) => {
     await pool.query('delete from items where item_id = $1', [body.item_id]);
     return { removed: body.item_id };
   } catch (err) {
-    app.log.error(err);
+    logFailure('item_remove', err);
     return reply.code(502).send({ error: 'item_remove failed' });
   }
 });
 
 if (isEntry) {
-  bootstrap().catch((err) => app.log.error({ err }, 'schema bootstrap failed'));
+  bootstrap().catch((err) => logFailure('schema bootstrap', err));
 
   // Scheduled pull. The box is tailnet-only, so Plaid cannot reach it with webhooks; polling on an
-  // interval is the pull mechanism. A single in-flight guard keeps a slow run from overlapping.
+  // interval is the pull mechanism. runSyncExclusive is the in-flight guard, shared with /sync.
   const SYNC_INTERVAL_MS = Number(process.env.FINANCE_SYNC_INTERVAL_MS ?? 6 * 60 * 60 * 1000);
-  let syncing = false;
   const tick = async (): Promise<void> => {
-    if (syncing || !configured) return;
-    syncing = true;
+    if (!configured) return;
     try {
-      await syncAll();
+      await runSyncExclusive();
     } catch (err) {
-      app.log.error({ err }, 'scheduled sync failed');
-    } finally {
-      syncing = false;
+      logFailure('scheduled sync', err);
     }
   };
   setInterval(() => void tick(), SYNC_INTERVAL_MS).unref();
@@ -195,7 +233,7 @@ if (isEntry) {
     .listen({ port: config.port, host: config.host })
     .then((addr) => app.log.info(`finance listening on ${addr}`))
     .catch((err) => {
-      app.log.error(err);
+      logFailure('listen', err);
       process.exit(1);
     });
 }

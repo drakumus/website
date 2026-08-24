@@ -134,6 +134,13 @@ async function syncRecurring(
       ],
     );
   }
+  // A stream Plaid no longer reports (ended subscription, merged stream) is dead: deactivate it
+  // rather than leaving it flagged active forever. Rows are kept for history.
+  await pool.query(
+    `update recurring_streams set is_active = false, updated_at = now()
+      where item_id = $1 and is_active and stream_id <> all($2::text[])`,
+    [itemId, streams.map(({ s }) => s.stream_id)],
+  );
 }
 
 async function upsertSecurities(securities: Security[]): Promise<void> {
@@ -194,15 +201,33 @@ async function upsertInvestmentTransactions(
   }
 }
 
-// Investments has no incremental sync: fetch holdings whole, and page investment transactions over a
-// two-year window, reconciling by upsert.
-async function syncInvestments(itemId: string, accessToken: string): Promise<void> {
+// Investments has no incremental sync: fetch holdings whole and reconcile against stored state
+// (upsert current rows, delete rows Plaid no longer reports, e.g. a fully sold position — an
+// upsert alone would count the sold position's last value forever). Investment transactions page
+// over a two-year window and reconcile the same way within that window.
+async function syncInvestments(
+  itemId: string,
+  accessToken: string,
+  accountIds: string[],
+): Promise<void> {
   const holdingsRes = await plaid.investmentsHoldingsGet({ access_token: accessToken });
   await upsertSecurities(holdingsRes.data.securities);
   await upsertHoldings(holdingsRes.data.holdings);
+  if (accountIds.length) {
+    const held = holdingsRes.data.holdings;
+    await pool.query(
+      `delete from holdings h
+        where h.account_id = any($1::text[])
+          and not exists (
+            select 1 from unnest($2::text[], $3::text[]) as keep(account_id, security_id)
+             where keep.account_id = h.account_id and keep.security_id = h.security_id)`,
+      [accountIds, held.map((h) => h.account_id), held.map((h) => h.security_id)],
+    );
+  }
 
   const endDate = new Date().toISOString().slice(0, 10);
   const startDate = new Date(Date.now() - 730 * 86400 * 1000).toISOString().slice(0, 10);
+  const seenIds: string[] = [];
   let offset = 0;
   for (;;) {
     const res = await plaid.investmentsTransactionsGet({
@@ -213,18 +238,27 @@ async function syncInvestments(itemId: string, accessToken: string): Promise<voi
     });
     await upsertSecurities(res.data.securities);
     await upsertInvestmentTransactions(itemId, res.data.investment_transactions);
+    seenIds.push(...res.data.investment_transactions.map((t) => t.investment_transaction_id));
     offset += res.data.investment_transactions.length;
     if (res.data.investment_transactions.length === 0) break;
     if (offset >= res.data.total_investment_transactions) break;
   }
+  await pool.query(
+    `delete from investment_transactions
+      where item_id = $1 and date >= $2 and date <= $3
+        and investment_transaction_id <> all($4::text[])`,
+    [itemId, startDate, endDate, seenIds],
+  );
 }
 
 // Pull one Item across all products. Investments are best-effort: an Item with no investment accounts
 // (a pure spending Item) returns an error for the investment endpoints, which must not fail the whole
 // pull. On ITEM_LOGIN_REQUIRED the Item is flagged for update-mode re-auth.
 export async function syncItem(item: ItemRow): Promise<void> {
-  const accessToken = decryptToken(item.access_token_enc);
   try {
+    // Inside the try so a decrypt failure (rotated key, corrupt row) lands in last_error below
+    // instead of silently skipping the item forever.
+    const accessToken = decryptToken(item.access_token_enc);
     const accts = await plaid.accountsGet({ access_token: accessToken });
     await upsertAccounts(item.item_id, accts.data.accounts);
     const accountIds = accts.data.accounts.map((a) => a.account_id);
@@ -232,7 +266,7 @@ export async function syncItem(item: ItemRow): Promise<void> {
     await syncTransactions(item, accessToken);
     await syncRecurring(item.item_id, accessToken, accountIds);
     try {
-      await syncInvestments(item.item_id, accessToken);
+      await syncInvestments(item.item_id, accessToken, accountIds);
     } catch (err) {
       // No investment accounts on this Item (or investments not covered): keep the spending pull.
       if (plaidErrorCode(err) !== 'PRODUCTS_NOT_SUPPORTED') throw err;

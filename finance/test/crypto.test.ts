@@ -1,10 +1,20 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { randomBytes } from 'node:crypto';
 
-// A 32-byte key must be present before the config module reads the environment on import.
-process.env.FINANCE_TOKEN_KEY = randomBytes(32).toString('base64');
+// A fixed 32-byte key, set before the config module reads the environment on import. Fixed (not
+// random) so the stored-format vector below stays decryptable.
+process.env.FINANCE_TOKEN_KEY = 'BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc=';
 const { encryptToken, decryptToken } = await import('../src/crypto.ts');
+
+test('the stored format is pinned: a fixed vector decrypts', () => {
+  // Generated once with the key above. Any change to the on-disk format (part order, base64url
+  // encoding, algorithm, nonce/tag sizes) breaks decryption of existing database rows; this test
+  // fails loudly on such a change instead of letting every stored access token become unreadable.
+  assert.equal(
+    decryptToken('zugIVCvnsTXPpd_H.hmNwiXqwG0OjClqzOIpMtw.Esk29_seHO2YLZtcMeAoOceeAlbWTU-n5fFS'),
+    'access-sandbox-fixed-vector',
+  );
+});
 
 test('token encryption round-trips', () => {
   const secret = 'access-production-1234-5678';
