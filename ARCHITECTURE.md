@@ -31,7 +31,7 @@ Companion docs:
 |---|---|---|---|
 | **Public** | `zoci.me`, `js1.zoci.me` | anyone | none |
 | **Guest** | `guest.zoci.me` | allowlisted Google accounts | oauth2-proxy (Google OIDC) |
-| **Private** | `admin`/`ha`/`finance.zoci.me` | admin, on the tailnet | Tailscale network + L7 backstop |
+| **Private** | `admin`/`ha`/`finance`/`drop.zoci.me` | admin, on the tailnet | Tailscale network + L7 backstop |
 
 The whole design turns on a **port split**: public vhosts listen on `:8443`, private vhosts on
 `:443`. The public VPS can only reach `:8443`; it is structurally blocked from `:443`, so the
@@ -101,6 +101,7 @@ all logs are bounded there via the `x-logging` anchor.
 | `ha-broker` | sole holder of the Home Assistant token; whitelist-only | [`ha-broker/src/server.ts`](ha-broker/src/server.ts) |
 | `oauth2-proxy` | Google OIDC gate for the guest surface | config in [`infra/docker-compose.yml`](infra/docker-compose.yml), allowlist `infra/oauth2-proxy/emails.txt` |
 | `coredns` | split-DNS resolver for tailnet-only names | [`infra/coredns/Corefile`](infra/coredns/Corefile) |
+| `drop` | tailnet-only previewer for agent deliverables (read-only file browser + STL viewer) | [`drop/server.py`](drop/server.py) |
 
 Two internet-facing containers (`api`, `web`) hold **no** secrets and have **no** Docker socket.
 `ha-broker` is on a private bridge with `api` only (no host port), runs `read_only` with

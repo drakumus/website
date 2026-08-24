@@ -300,6 +300,39 @@ services:
     security_opt:
       - no-new-privileges:true
 
+  drop:
+    # Tailnet-only previewer for agent deliverables (see ~/specs/drop-server.md). Serves the
+    # DROP_DIR/APOLLO_DIR host directories read-only as a file browser with inline previews
+    # (HTML, images, multi-STL 3D assemblies). Stdlib Python, no upload routes; the write path
+    # for content is agents on the host writing plain files into DROP_DIR. The one mutation
+    # route is POST /api/opened (bounded opened-history JSON in the drop_state volume, so the
+    # recently-opened list follows Rohan across devices). Published on host loopback for the
+    # tailnet-gated drop.zoci.me vhost only, never the LAN or internet.
+    build:
+      context: ../drop
+      dockerfile: Dockerfile
+    image: zoci-drop:latest
+    restart: unless-stopped
+    logging: *default-logging
+    ports:
+      - "127.0.0.1:8092:8484"
+    environment:
+      - DROP_STATE=/state
+    volumes:
+      # drop_unset is an empty named-volume fallback so compose still loads without infra/.env;
+      # the real host paths live there (gitignored, like every infra address).
+      - ${DROP_DIR:-drop_unset}:/data/drop:ro
+      - ${APOLLO_DIR:-drop_unset}:/data/apollo-case:ro
+      - drop_state:/state
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8484/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
   finance-db:
     # Postgres for the finance dashboard (see ~/specs/finance-dashboard.md). On the internal
     # `finance` bridge only: no host port, never on the LAN or internet, reached solely by the
@@ -390,6 +423,8 @@ services:
 volumes:
   caddy_data:
   caddy_config:
+  drop_unset:
+  drop_state:
   vm_data:
   grafana_data:
   finance_db:

@@ -146,6 +146,18 @@ admin.zoci.me {
 	}
 }
 
+drop.zoci.me {
+	import sec
+	import wildcard_tls
+	import audit_log
+	route {
+		import tailnet_guard
+		# Agent deliverables previewer (the drop container). Read-only file serving; content
+		# arrives via host-side file writes. The single POST route is the opened-history.
+		reverse_proxy 127.0.0.1:8092
+	}
+}
+
 ha.zoci.me {
 	import sec
 	import wildcard_tls
