@@ -36,7 +36,9 @@ guidance and deliberately does not restate code behavior (see the first rule).
 - Never rewrite history. No force-push, and no reset, rebase, or reword of commits that already
   exist, even unpushed. If a landed commit needs a change, add a new commit on top.
 - Run `make check-secrets` before every push. Fast-forward pushes only. Commit and push only
-  when asked.
+  when asked, and read "push" strictly: merging or landing work does not imply pushing it.
+- When a review is requested together with a merge or push, run the review first and land the
+  fixes before advancing mainline.
 
 ## Contribution standards
 Commit messages and PR descriptions:
