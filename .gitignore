@@ -53,6 +53,7 @@ build/
 # append-only store the api serves, and the processor's offset state. Never commit — real
 # identities/IPs. Restricted, host-only.
 /infra/audit/caddy/*.log
+/infra/audit/caddy/*.log.gz
 /infra/audit/.audit-offset*
 /infra/status/access.jsonl
 /infra/status/.access.*
