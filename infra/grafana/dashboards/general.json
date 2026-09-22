@@ -2896,7 +2896,7 @@
     {
       "id": 49,
       "type": "row",
-      "title": "AI",
+      "title": "music",
       "collapsed": false,
       "gridPos": {
         "h": 1,
@@ -2909,7 +2909,7 @@
     {
       "id": 50,
       "type": "stat",
-      "title": "AI",
+      "title": "music",
       "datasource": {
         "type": "prometheus",
         "uid": "victoriametrics"
@@ -2926,7 +2926,7 @@
             "type": "prometheus",
             "uid": "victoriametrics"
           },
-          "expr": "min(zoci_container_up{container=~\"hermes\"})",
+          "expr": "min(zoci_container_up{container=~\"muse\"})",
           "legendFormat": "",
           "refId": "A",
           "editorMode": "code",
@@ -2988,7 +2988,7 @@
     {
       "id": 51,
       "type": "stat",
-      "title": "hermes",
+      "title": "muse",
       "datasource": {
         "type": "prometheus",
         "uid": "victoriametrics"
@@ -3005,7 +3005,7 @@
             "type": "prometheus",
             "uid": "victoriametrics"
           },
-          "expr": "zoci_container_up{container=\"hermes\"}",
+          "expr": "zoci_container_up{container=\"muse\"}",
           "legendFormat": "",
           "refId": "A",
           "editorMode": "code",
@@ -3085,7 +3085,7 @@
             "type": "prometheus",
             "uid": "victoriametrics"
           },
-          "expr": "zoci_container_cpu_percent{container=~\"hermes\"}",
+          "expr": "zoci_container_cpu_percent{container=~\"muse\"}",
           "legendFormat": "{{container}}",
           "refId": "A",
           "editorMode": "code",
@@ -3143,7 +3143,7 @@
             "type": "prometheus",
             "uid": "victoriametrics"
           },
-          "expr": "zoci_container_memory_bytes{container=~\"hermes\"}",
+          "expr": "zoci_container_memory_bytes{container=~\"muse\"}",
           "legendFormat": "{{container}}",
           "refId": "A",
           "editorMode": "code",
@@ -3183,7 +3183,7 @@
     {
       "id": 54,
       "type": "row",
-      "title": "finance",
+      "title": "AI",
       "collapsed": false,
       "gridPos": {
         "h": 1,
@@ -3196,7 +3196,7 @@
     {
       "id": 55,
       "type": "stat",
-      "title": "finance",
+      "title": "AI",
       "datasource": {
         "type": "prometheus",
         "uid": "victoriametrics"
@@ -3206,6 +3206,293 @@
         "w": 6,
         "x": 0,
         "y": 107
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          },
+          "expr": "min(zoci_container_up{container=~\"hermes\"})",
+          "legendFormat": "",
+          "refId": "A",
+          "editorMode": "code",
+          "range": true,
+          "instant": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "noValue": "n/a",
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "1": {
+                  "text": "up",
+                  "index": 0
+                },
+                "0": {
+                  "text": "down",
+                  "index": 1
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 0.5
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 56,
+      "type": "stat",
+      "title": "hermes",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "victoriametrics"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 18,
+        "x": 6,
+        "y": 107
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          },
+          "expr": "zoci_container_up{container=\"hermes\"}",
+          "legendFormat": "",
+          "refId": "A",
+          "editorMode": "code",
+          "range": true,
+          "instant": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "noValue": "n/a",
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "1": {
+                  "text": "up",
+                  "index": 0
+                },
+                "0": {
+                  "text": "down",
+                  "index": 1
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 0.5
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 57,
+      "type": "timeseries",
+      "title": "CPU %",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "victoriametrics"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 111
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          },
+          "expr": "zoci_container_cpu_percent{container=~\"hermes\"}",
+          "legendFormat": "{{container}}",
+          "refId": "A",
+          "editorMode": "code",
+          "range": true,
+          "instant": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "showPoints": "never",
+            "spanNulls": true,
+            "axisBorderShow": false,
+            "gradientMode": "none"
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 58,
+      "type": "timeseries",
+      "title": "Memory",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "victoriametrics"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 111
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          },
+          "expr": "zoci_container_memory_bytes{container=~\"hermes\"}",
+          "legendFormat": "{{container}}",
+          "refId": "A",
+          "editorMode": "code",
+          "range": true,
+          "instant": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "showPoints": "never",
+            "spanNulls": true,
+            "axisBorderShow": false,
+            "gradientMode": "none"
+          },
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 59,
+      "type": "row",
+      "title": "finance",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 118
+      },
+      "panels": []
+    },
+    {
+      "id": 60,
+      "type": "stat",
+      "title": "finance",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "victoriametrics"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 119
       },
       "targets": [
         {
@@ -3273,14 +3560,14 @@
       }
     },
     {
-      "id": 56,
+      "id": 61,
       "type": "text",
       "title": "",
       "gridPos": {
         "h": 4,
         "w": 18,
         "x": 6,
-        "y": 107
+        "y": 119
       },
       "options": {
         "mode": "markdown",

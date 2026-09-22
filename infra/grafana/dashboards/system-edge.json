@@ -17,7 +17,7 @@
   "links": [],
   "panels": [
     {
-      "id": 57,
+      "id": 62,
       "type": "row",
       "title": "Health",
       "collapsed": false,
@@ -30,7 +30,7 @@
       "panels": []
     },
     {
-      "id": 58,
+      "id": 63,
       "type": "stat",
       "title": "caddy",
       "datasource": {
@@ -109,7 +109,7 @@
       }
     },
     {
-      "id": 59,
+      "id": 64,
       "type": "stat",
       "title": "coredns",
       "datasource": {
@@ -188,7 +188,7 @@
       }
     },
     {
-      "id": 60,
+      "id": 65,
       "type": "table",
       "title": "Restarts & uptime",
       "datasource": {
@@ -331,7 +331,7 @@
       }
     },
     {
-      "id": 61,
+      "id": 66,
       "type": "row",
       "title": "Resources",
       "collapsed": false,
@@ -344,7 +344,7 @@
       "panels": []
     },
     {
-      "id": 62,
+      "id": 67,
       "type": "timeseries",
       "title": "CPU %",
       "description": "",
@@ -402,7 +402,7 @@
       }
     },
     {
-      "id": 63,
+      "id": 68,
       "type": "timeseries",
       "title": "Memory",
       "description": "",
@@ -460,7 +460,7 @@
       }
     },
     {
-      "id": 64,
+      "id": 69,
       "type": "timeseries",
       "title": "Network I/O",
       "description": "",
@@ -530,7 +530,7 @@
       }
     },
     {
-      "id": 65,
+      "id": 70,
       "type": "timeseries",
       "title": "Block I/O",
       "description": "",

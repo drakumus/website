@@ -17,7 +17,7 @@
   "links": [],
   "panels": [
     {
-      "id": 123,
+      "id": 128,
       "type": "row",
       "title": "Health",
       "collapsed": false,
@@ -30,7 +30,7 @@
       "panels": []
     },
     {
-      "id": 124,
+      "id": 129,
       "type": "stat",
       "title": "jellyfin",
       "datasource": {
@@ -109,7 +109,7 @@
       }
     },
     {
-      "id": 125,
+      "id": 130,
       "type": "table",
       "title": "Restarts & uptime",
       "datasource": {
@@ -252,7 +252,7 @@
       }
     },
     {
-      "id": 126,
+      "id": 131,
       "type": "row",
       "title": "Resources",
       "collapsed": false,
@@ -265,7 +265,7 @@
       "panels": []
     },
     {
-      "id": 127,
+      "id": 132,
       "type": "timeseries",
       "title": "CPU %",
       "description": "",
@@ -323,7 +323,7 @@
       }
     },
     {
-      "id": 128,
+      "id": 133,
       "type": "timeseries",
       "title": "Memory",
       "description": "",
@@ -381,7 +381,7 @@
       }
     },
     {
-      "id": 129,
+      "id": 134,
       "type": "timeseries",
       "title": "Network I/O",
       "description": "",
@@ -451,7 +451,7 @@
       }
     },
     {
-      "id": 130,
+      "id": 135,
       "type": "timeseries",
       "title": "Block I/O",
       "description": "",

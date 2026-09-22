@@ -17,7 +17,7 @@
   "links": [],
   "panels": [
     {
-      "id": 66,
+      "id": 71,
       "type": "row",
       "title": "Health",
       "collapsed": false,
@@ -30,7 +30,7 @@
       "panels": []
     },
     {
-      "id": 67,
+      "id": 72,
       "type": "stat",
       "title": "web",
       "datasource": {
@@ -109,7 +109,7 @@
       }
     },
     {
-      "id": 68,
+      "id": 73,
       "type": "stat",
       "title": "api",
       "datasource": {
@@ -188,7 +188,7 @@
       }
     },
     {
-      "id": 69,
+      "id": 74,
       "type": "table",
       "title": "Restarts & uptime",
       "datasource": {
@@ -331,7 +331,7 @@
       }
     },
     {
-      "id": 70,
+      "id": 75,
       "type": "row",
       "title": "Resources",
       "collapsed": false,
@@ -344,7 +344,7 @@
       "panels": []
     },
     {
-      "id": 71,
+      "id": 76,
       "type": "timeseries",
       "title": "CPU %",
       "description": "",
@@ -402,7 +402,7 @@
       }
     },
     {
-      "id": 72,
+      "id": 77,
       "type": "timeseries",
       "title": "Memory",
       "description": "",
@@ -460,7 +460,7 @@
       }
     },
     {
-      "id": 73,
+      "id": 78,
       "type": "timeseries",
       "title": "Network I/O",
       "description": "",
@@ -530,7 +530,7 @@
       }
     },
     {
-      "id": 74,
+      "id": 79,
       "type": "timeseries",
       "title": "Block I/O",
       "description": "",
@@ -600,7 +600,7 @@
       }
     },
     {
-      "id": 75,
+      "id": 80,
       "type": "row",
       "title": "API",
       "collapsed": false,
@@ -613,7 +613,7 @@
       "panels": []
     },
     {
-      "id": 76,
+      "id": 81,
       "type": "timeseries",
       "title": "Request rate by route",
       "description": "",
@@ -671,7 +671,7 @@
       }
     },
     {
-      "id": 77,
+      "id": 82,
       "type": "timeseries",
       "title": "p95 latency by route",
       "description": "",
@@ -729,7 +729,7 @@
       }
     },
     {
-      "id": 78,
+      "id": 83,
       "type": "timeseries",
       "title": "Error ratio (5xx)",
       "description": "",
@@ -787,7 +787,7 @@
       }
     },
     {
-      "id": 79,
+      "id": 84,
       "type": "timeseries",
       "title": "In-flight requests",
       "description": "",

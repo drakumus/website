@@ -17,7 +17,7 @@
   "links": [],
   "panels": [
     {
-      "id": 80,
+      "id": 85,
       "type": "row",
       "title": "Health",
       "collapsed": false,
@@ -30,7 +30,7 @@
       "panels": []
     },
     {
-      "id": 81,
+      "id": 86,
       "type": "stat",
       "title": "oauth2-proxy",
       "datasource": {
@@ -109,7 +109,7 @@
       }
     },
     {
-      "id": 82,
+      "id": 87,
       "type": "stat",
       "title": "ha-broker",
       "datasource": {
@@ -188,7 +188,7 @@
       }
     },
     {
-      "id": 83,
+      "id": 88,
       "type": "stat",
       "title": "api",
       "datasource": {
@@ -267,7 +267,7 @@
       }
     },
     {
-      "id": 84,
+      "id": 89,
       "type": "table",
       "title": "Restarts & uptime",
       "datasource": {
@@ -410,7 +410,7 @@
       }
     },
     {
-      "id": 85,
+      "id": 90,
       "type": "row",
       "title": "Resources",
       "collapsed": false,
@@ -423,7 +423,7 @@
       "panels": []
     },
     {
-      "id": 86,
+      "id": 91,
       "type": "timeseries",
       "title": "CPU %",
       "description": "",
@@ -481,7 +481,7 @@
       }
     },
     {
-      "id": 87,
+      "id": 92,
       "type": "timeseries",
       "title": "Memory",
       "description": "",
@@ -539,7 +539,7 @@
       }
     },
     {
-      "id": 88,
+      "id": 93,
       "type": "timeseries",
       "title": "Network I/O",
       "description": "",
@@ -609,7 +609,7 @@
       }
     },
     {
-      "id": 89,
+      "id": 94,
       "type": "timeseries",
       "title": "Block I/O",
       "description": "",
@@ -679,7 +679,7 @@
       }
     },
     {
-      "id": 90,
+      "id": 95,
       "type": "row",
       "title": "API",
       "collapsed": false,
@@ -692,7 +692,7 @@
       "panels": []
     },
     {
-      "id": 91,
+      "id": 96,
       "type": "timeseries",
       "title": "Request rate by route",
       "description": "",
@@ -750,7 +750,7 @@
       }
     },
     {
-      "id": 92,
+      "id": 97,
       "type": "timeseries",
       "title": "p95 latency by route",
       "description": "",
@@ -808,7 +808,7 @@
       }
     },
     {
-      "id": 93,
+      "id": 98,
       "type": "timeseries",
       "title": "Error ratio (5xx)",
       "description": "",
@@ -866,7 +866,7 @@
       }
     },
     {
-      "id": 94,
+      "id": 99,
       "type": "timeseries",
       "title": "In-flight requests",
       "description": "",
@@ -923,7 +923,7 @@
       }
     },
     {
-      "id": 95,
+      "id": 100,
       "type": "row",
       "title": "Home Assistant",
       "collapsed": false,
@@ -936,7 +936,7 @@
       "panels": []
     },
     {
-      "id": 96,
+      "id": 101,
       "type": "stat",
       "title": "HA reachable",
       "description": "",
@@ -1001,7 +1001,7 @@
       }
     },
     {
-      "id": 97,
+      "id": 102,
       "type": "timeseries",
       "title": "Round-trip failures",
       "description": "",
@@ -1058,7 +1058,7 @@
       }
     },
     {
-      "id": 98,
+      "id": 103,
       "type": "timeseries",
       "title": "Round-trip p95",
       "description": "",

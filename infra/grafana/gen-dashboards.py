@@ -28,6 +28,7 @@ SYSTEMS = {
     "admin":   ["infra-admin-web-1", "infra-api-1"],
     "metrics": ["infra-victoria-metrics-1", "infra-node-exporter-1", "infra-grafana-1"],
     "media":   ["jellyfin"],
+    "music":   ["muse"],
     "AI":      ["hermes"],
     "finance": [],
 }

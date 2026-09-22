@@ -16,6 +16,7 @@ const DASHBOARDS: { label: string; uid: string }[] = [
   { label: 'admin', uid: 'zoci-sys-admin' },
   { label: 'metrics', uid: 'zoci-sys-metrics' },
   { label: 'media', uid: 'zoci-sys-media' },
+  { label: 'music', uid: 'zoci-sys-music' },
   { label: 'AI', uid: 'zoci-sys-AI' },
   { label: 'finance', uid: 'zoci-sys-finance' },
 ];
