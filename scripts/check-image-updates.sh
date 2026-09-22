@@ -5,7 +5,10 @@
 # freeze the version, so run this periodically (`make check-updates`). When something is STALE,
 # re-pin its `image:` line to the new `tag@sha256:…` and `make deploy`. See DEVELOPMENT.md.
 set -uo pipefail
-cd "$(git rev-parse --show-toplevel)"
+# Locate the repo from this script's own path: the images collector invokes this from
+# outside the repo (cron runs from $HOME), where git rev-parse would fail and leave
+# every pin() grep reading a missing file (reported as STALE with an empty version).
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
 stale=0
 pin() { grep -oE "image: $1[^[:space:]]*" infra/docker-compose.yml | head -1 | sed 's/image: //'; }
 
