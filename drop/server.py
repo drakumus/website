@@ -520,12 +520,14 @@ function addGround(box){
   const size = box.getSize(new THREE.Vector3());
   const span = Math.max(size.x, size.y) * 2.2 || 200;
   const step = Math.pow(10, Math.round(Math.log10(span / 12)));
+  // maroon from the site palette, with the centre lines a touch brighter
   const grid = new THREE.GridHelper(Math.ceil(span / step) * step,
-                                    Math.ceil(span / step), 0x3a3b42, 0x25262b);
+                                    Math.ceil(span / step), 0xe44d4d, 0xc62828);
   grid.rotation.x = Math.PI / 2;                 // GridHelper is XZ; the bed is XY
   const c = box.getCenter(new THREE.Vector3());
   grid.position.set(c.x, c.y, box.min.z);
-  grid.material.transparent = true; grid.material.opacity = 0.5;
+  grid.material.transparent = true; grid.material.opacity = 0.16;
+  grid.material.depthWrite = false;              // never occlude the model it sits under
   scene.add(grid);
 }
 
