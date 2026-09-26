@@ -7,7 +7,7 @@ RUN adduser -D -H drop
 # read_only at runtime; this volume is the one writable path).
 RUN mkdir /state && chown drop /state
 WORKDIR /srv
-COPY server.py .
+COPY server.py threemf.py ./
 COPY viewerlib/ viewerlib/
 
 USER drop

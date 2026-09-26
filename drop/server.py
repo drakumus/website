@@ -1,20 +1,23 @@
 """Drop server: tailnet-only previewer for agent deliverables (see ~/specs/drop-server.md).
 
 Serves DROP_ROOT read-only as a single-page file browser: a newest-first file list
-grouped by directory, with an inline preview pane (HTML, images, STL assemblies,
-markdown, text, PDF, video). GET-only, stdlib-only, no upload or mutation routes.
+grouped by directory, with an inline preview pane (HTML, images, STL/3MF model
+assemblies, markdown, text, PDF, video). GET-only, stdlib-only, no upload routes.
 
 Routes:
   /                  browser UI (newest file preselected)
   /d/<path>          browser UI with <path> preselected (the link agents paste)
   /raw/<path>        the file itself (iframe/img sources, downloads)
-  /view?f=a,b,c      standalone multi-STL 3D viewer (assembly view)
+  /view?f=a,b,c      standalone multi-model 3D viewer (STL + 3MF assembly view)
+  /api/3mf/<path>    3MF slicer metadata (filament colors, plate summary) as JSON
+  /thumb/<path>      the plate cover rendered into a 3MF, when it has one
   /api/tree          flat JSON file list, newest first
-  /_viewerlib/<js>   Three.js assets for the viewer
+  /_viewerlib/<js>   vendored viewer modules (three.js, loaders, controls, gizmo)
   /healthz           200 ok
 
 Env: DROP_ROOT (default /data), DROP_PORT (8484), DROP_BIND (0.0.0.0).
 """
+import collections
 import http.server
 import json
 import mimetypes
@@ -22,22 +25,27 @@ import os
 import threading
 import time
 import urllib.parse
+import zipfile
+
+import threemf
 
 ROOT = os.path.realpath(os.environ.get('DROP_ROOT', '/data'))
 PORT = int(os.environ.get('DROP_PORT', '8484'))
 BIND = os.environ.get('DROP_BIND', '0.0.0.0')
 STATE = os.environ.get('DROP_STATE', '')   # writable dir for opened-history; in-memory if unset
-VIEWERLIB = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'viewerlib')
+VIEWERLIB = os.path.realpath(
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), 'viewerlib'))
 
 EXCLUDE_DIRS = {'.git', 'node_modules', '__pycache__', '.venv', 'venv', '.cache',
                 '.pytest_cache', 'dist', '.next'}
 MAX_FILES = 4000          # newest wins when the walk finds more
+MAX_ASSEMBLY = 20         # models in one /view scene, matching the history entry cap
 TREE_TTL_SECONDS = 3.0
 TEXT_PREVIEW_LIMIT = 2 * 1024 * 1024
 
 mimetypes.add_type('model/stl', '.stl')
 mimetypes.add_type('text/markdown', '.md')
-mimetypes.add_type('application/octet-stream', '.3mf')
+mimetypes.add_type('model/3mf', '.3mf')
 mimetypes.add_type('application/octet-stream', '.gcode')
 
 
@@ -52,7 +60,10 @@ def resolve(rel):
     rel = rel.lstrip('/')
     if not rel or any(part in ('..', '') for part in rel.split('/')):
         return None
-    full = os.path.realpath(os.path.join(ROOT, rel))
+    try:
+        full = os.path.realpath(os.path.join(ROOT, rel))
+    except (OSError, ValueError):     # e.g. an embedded NUL, which lstat rejects
+        return None
     if full != ROOT and not full.startswith(ROOT + os.sep):
         return None
     return full
@@ -89,6 +100,40 @@ def build_tree():
     _tree_cache['at'] = now
     _tree_cache['data'] = data
     return data
+
+
+# 3MF slicer metadata, keyed by path and mtime. Reading it touches only the small
+# Metadata/*.config members, never the mesh, so it stays cheap even for a large project.
+_3mf_lock = threading.Lock()
+_3mf_cache = collections.OrderedDict()
+THREEMF_CACHE_MAX = 64
+
+
+def model_info(full):
+    """Parsed 3MF sidecar metadata for a file, or None if it is not a readable 3MF."""
+    if not full.lower().endswith('.3mf'):
+        return None
+    try:
+        st = os.stat(full)
+    except OSError:
+        return None
+    # size and inode as well as mtime, because a file copied in with its timestamp
+    # preserved is a supported way to land content here and would otherwise read stale
+    key = (full, st.st_mtime_ns, st.st_size, st.st_ino)
+    with _3mf_lock:
+        if key in _3mf_cache:
+            _3mf_cache.move_to_end(key)
+            return _3mf_cache[key]
+    try:
+        info = threemf.read_3mf(full)
+    except Exception:          # a malformed drop must not take the previewer down
+        info = None
+    with _3mf_lock:
+        _3mf_cache[key] = info
+        _3mf_cache.move_to_end(key)
+        while len(_3mf_cache) > THREEMF_CACHE_MAX:
+            _3mf_cache.popitem(last=False)     # evict oldest, rather than flush all
+    return info
 
 
 # Opened-history: shared across devices (the reason it is server-side, not localStorage).
@@ -153,83 +198,404 @@ def record_opened(rel):
         os.replace(tmp, path)
 
 
-VIEWER_HTML = '''<!doctype html><meta charset="utf-8">
+VIEWER_HTML = r"""<!doctype html><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>3D — %TITLE%</title>
-<style>body{margin:0;background:#131417;color:#ececec;overflow:hidden;
-font:13px "Open Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif}
-#hud{position:fixed;top:10px;left:12px;z-index:2;color:#9a9a9a}
-#hud .m{display:block}#hud .sw{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px}
-#hud .hint{color:#6f6f6f;margin-top:4px;display:block}</style>
-<div id="hud"><span class="hint">drag orbit &middot; scroll zoom &middot; right-drag pan</span></div>
-<script src="/_viewerlib/three.min.js"></script>
-<script src="/_viewerlib/OrbitControls.js"></script>
-<script>
+<title>3D &mdash; %TITLE%</title>
+<style>
+:root{--bg:#131417;--panel:rgba(22,23,26,0.88);--line:rgba(255,255,255,0.10);
+      --fg:#ececec;--dim:#9a9a9a;--faint:#6f6f6f;--gold:#c4a054;--acc:#e44d4d}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);overflow:hidden;
+  font:13px/1.5 "Open Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif}
+canvas{display:block;touch-action:none}
+.pad{position:fixed;z-index:2;background:var(--panel);border:1px solid var(--line);
+     border-radius:6px;padding:8px 11px;backdrop-filter:blur(7px);max-width:min(46vw,340px)}
+#legend{top:10px;left:10px;max-height:min(46vh,420px);overflow-y:auto;overscroll-behavior:contain}
+#legend .m{display:flex;align-items:center;gap:7px;line-height:1.75;white-space:nowrap}
+#legend .sw{width:10px;height:10px;border-radius:2px;flex:0 0 auto;
+            box-shadow:0 0 0 1px rgba(0,0,0,0.5) inset}
+#legend .nm{overflow:hidden;text-overflow:ellipsis}
+#legend .ct{color:var(--faint);font-size:11px;flex:0 0 auto}
+#dims{bottom:10px;left:10px;font-variant-numeric:tabular-nums}
+#warn{top:10px;left:50%;transform:translateX(-50%);color:var(--acc);
+      border-color:rgba(228,77,77,0.5)}
+#dims b{color:var(--gold);font-weight:700;letter-spacing:0.02em}
+#dims .sub{color:var(--faint);font-size:11px;margin-top:2px}
+#info{top:10px;right:10px;line-height:1.7}
+#info .r{display:flex;gap:12px;justify-content:space-between}
+#info .k{color:var(--faint)}
+#info .v{color:var(--fg);text-align:right}
+#info .hd{color:var(--gold);font-weight:700;margin-bottom:3px}
+#info .fil{display:flex;align-items:center;gap:6px}
+#info .sw{width:9px;height:9px;border-radius:2px;box-shadow:0 0 0 1px rgba(0,0,0,0.5) inset}
+.tag{display:inline-block;font-size:10px;border-radius:3px;padding:0 5px;margin-top:5px;
+     border:1px solid var(--line);color:var(--dim)}
+.tag.on{color:var(--gold);border-color:rgba(196,160,84,0.45)}
+#hint{position:fixed;z-index:2;bottom:12px;left:50%;transform:translateX(-50%);
+      color:var(--faint);font-size:11px;text-align:center;pointer-events:none;
+      max-width:min(70vw,460px)}
+#msg{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+     color:var(--dim);z-index:3;pointer-events:none;text-align:center;padding:20px}
+#cover{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:1;
+       opacity:0;transition:opacity 400ms ease;pointer-events:none}
+#cover img{max-width:62%;max-height:62%;border-radius:6px;filter:saturate(0.55) blur(0.4px);opacity:0.5}
+@media (max-width:620px){
+  .pad{max-width:58vw;padding:6px 8px;font-size:12px}
+  #info{line-height:1.45}
+  #info .hd,#info .r:not(.keep){display:none}   /* keep the tag and the headline rows */
+  #hint{display:none}
+  #legend{max-height:34vh}
+}
+@media (prefers-reduced-motion:reduce){#cover{transition:none}}
+[hidden]{display:none!important}
+</style>
+<div id="cover"></div>
+<div class="pad" id="legend" hidden></div>
+<div class="pad" id="dims" hidden></div>
+<div class="pad" id="info" hidden></div>
+<div id="hint">drag orbit &middot; scroll zoom &middot; right-drag pan &middot; click a cube face</div>
+<div id="msg">loading&hellip;</div>
+<script type="importmap">
+{"imports":{"three":"/_viewerlib/three.module.js"}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import {STLLoader} from '/_viewerlib/loaders/STLLoader.js';
+import {ThreeMFLoader} from '/_viewerlib/loaders/3MFLoader.js';
+import CameraControls from '/_viewerlib/camera-controls.module.min.js';
+import {ViewportGizmo} from '/_viewerlib/three-viewport-gizmo.js';
+
 const FILES = %FILES%;
+const $ = s => document.querySelector(s);
+const base = p => p.split('/').pop();
+const ext = p => { const n = base(p), i = n.lastIndexOf('.');
+                   return i < 0 ? '' : n.slice(i + 1).toLowerCase(); };
+const enc = p => p.split('/').map(encodeURIComponent).join('/');
+const esc = s => String(s).replace(/[&<>"]/g,
+  c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+// Colours land inside a CSS background, so anything that is not a plain hex triple
+// is dropped rather than escaped into a style attribute.
+const HEX6 = /^#[0-9a-fA-F]{6}$/;
+const safeColor = c => (typeof c === 'string' && HEX6.test(c)) ? c : '#888888';
+
+// Z is up: print beds are XY and every model here is authored that way. Setting the
+// default before anything is constructed also tells the gizmo to label its cube Z-up.
+THREE.Object3D.DEFAULT_UP.set(0, 0, 1);
+CameraControls.install({THREE});
+
+// Fallback palette, from the site's shared/theme.css family. Used only where a file
+// carries no color of its own: a 3MF names its real filament colors and those win.
+const COLS = ['#c4a054', '#c62828', '#9a9a9a', '#6d8bb0', '#d9c9a3', '#7a4a3a'];
+
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x16171a);
-const camera = new THREE.PerspectiveCamera(45, innerWidth/innerHeight, 0.1, 5000);
-const renderer = new THREE.WebGLRenderer({antialias:true});
+const camera = new THREE.PerspectiveCamera(40, innerWidth / innerHeight, 0.1, 100000);
+camera.up.set(0, 0, 1);
+const renderer = new THREE.WebGLRenderer({antialias: true});
 renderer.setSize(innerWidth, innerHeight);
-renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 document.body.appendChild(renderer.domElement);
-const controls = new THREE.OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true;
-scene.add(new THREE.HemisphereLight(0xffffff, 0x26262c, 0.85));
-const d1 = new THREE.DirectionalLight(0xffffff, 0.8); d1.position.set(1,2,1.5); scene.add(d1);
-const d2 = new THREE.DirectionalLight(0xffffff, 0.3); d2.position.set(-1.5,-1,-1); scene.add(d2);
-// site palette family: gold, maroon, neutrals, steel (shared/theme.css tokens)
-const COLS = [0xc4a054, 0xc62828, 0x9a9a9a, 0x6d8bb0, 0xd9c9a3, 0x7a4a3a];
-const hud = document.getElementById('hud');
-FILES.forEach((f,i) => {
-  const m = document.createElement('span'); m.className = 'm';
-  const sw = document.createElement('span'); sw.className = 'sw';
-  sw.style.background = '#'+COLS[i%COLS.length].toString(16).padStart(6,'0');
-  m.appendChild(sw); m.appendChild(document.createTextNode(f.split('/').pop()));
-  hud.insertBefore(m, hud.lastElementChild);
+
+// Intensities are in three's physical units (r155 dropped the legacy light scaling).
+scene.add(new THREE.HemisphereLight(0xffffff, 0x1a1a20, 2.2));
+const key = new THREE.DirectionalLight(0xffffff, 2.1); key.position.set(1, -1.4, 2);
+const fill = new THREE.DirectionalLight(0xffffff, 0.9); fill.position.set(-1.6, 1, 0.6);
+const rim = new THREE.DirectionalLight(0xffd9a0, 0.6); rim.position.set(0, 1.5, -1);
+scene.add(key, fill, rim);
+
+const controls = new CameraControls(camera, renderer.domElement);
+const A = CameraControls.ACTION;
+// Bambu Studio / Orca bindings, because that is the muscle memory these models come from.
+controls.mouseButtons.left = A.ROTATE;
+controls.mouseButtons.middle = A.TRUCK;
+controls.mouseButtons.right = A.TRUCK;
+controls.mouseButtons.wheel = A.DOLLY;
+controls.touches.one = A.TOUCH_ROTATE;
+controls.touches.two = A.TOUCH_DOLLY_TRUCK;
+controls.touches.three = A.TOUCH_TRUCK;
+controls.dollyToCursor = true;
+controls.smoothTime = 0.12;
+controls.draggingSmoothTime = 0.06;
+controls.updateCameraUp();
+
+const gizmo = new ViewportGizmo(camera, renderer, {
+  type: 'cube', size: 96, placement: 'bottom-right', offset: {bottom: 12, right: 12},
+  id: 'navcube',
+  font: {family: '"Open Sans",system-ui,sans-serif', weight: 600},
+  background: {color: 0x1c1d21, opacity: 0.92,
+               hover: {color: 0x24252b, opacity: 1}},
+  edges: {color: 0x2c2d33, opacity: 1},
+  corners: {color: 0x2c2d33, hover: {color: 0xc4a054}},
+  x: {label: 'R', color: 0x26272d, labelColor: 0xd8d8d8, hover: {color: 0xc4a054, labelColor: 0x16171a}},
+  nx: {label: 'L', color: 0x26272d, labelColor: 0xd8d8d8, hover: {color: 0xc4a054, labelColor: 0x16171a}},
+  y: {label: 'BK', color: 0x26272d, labelColor: 0xd8d8d8, hover: {color: 0xc4a054, labelColor: 0x16171a}},
+  ny: {label: 'FR', color: 0x26272d, labelColor: 0xd8d8d8, hover: {color: 0xc4a054, labelColor: 0x16171a}},
+  z: {label: 'TOP', color: 0x26272d, labelColor: 0xd8d8d8, hover: {color: 0xc4a054, labelColor: 0x16171a}},
+  nz: {label: 'BOT', color: 0x26272d, labelColor: 0xd8d8d8, hover: {color: 0xc4a054, labelColor: 0x16171a}},
 });
-function parseSTL(buf){
-  const dv = new DataView(buf); const n = dv.getUint32(80, true);
-  const pos = new Float32Array(n*9);
-  for(let i=0;i<n;i++){const o=84+i*50;
-    for(let v=0;v<3;v++){const p=o+12+v*12,k=i*9+v*3;
-      pos[k]=dv.getFloat32(p,true);pos[k+1]=dv.getFloat32(p+4,true);pos[k+2]=dv.getFloat32(p+8,true);}}
-  // merge duplicate vertices so smooth vertex normals can be computed
-  const map = new Map(), idx = new Uint32Array(n*3), uniq = [];
-  for(let v=0; v<n*3; v++){
-    const k = pos[v*3].toFixed(3)+','+pos[v*3+1].toFixed(3)+','+pos[v*3+2].toFixed(3);
-    let u = map.get(k);
-    if(u === undefined){ u = uniq.length/3; map.set(k,u);
-      uniq.push(pos[v*3], pos[v*3+1], pos[v*3+2]); }
-    idx[v] = u;
-  }
-  const g = new THREE.BufferGeometry();
-  g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(uniq),3));
-  g.setIndex(new THREE.BufferAttribute(idx,1));
-  g.computeVertexNormals();
-  return g;
+// The gizmo drives the camera directly, so hand the wheel over for the length of a
+// face-snap and hand back the resulting position, rather than letting both fight per frame.
+const TARGET = new THREE.Vector3();
+gizmo.addEventListener('start', () => { controls.enabled = false; });
+gizmo.addEventListener('change', () => {
+  controls.setPosition(camera.position.x, camera.position.y, camera.position.z, false);
+});
+gizmo.addEventListener('end', () => { controls.enabled = true; });
+// The widget is a disc but only the cube inside it is pickable, so a click on the
+// corner of the disc opens with "start" and never closes. Re-enable on any pointer
+// release instead of trusting that "end" arrives, or navigation dies for good.
+for (const ev of ['pointerup', 'pointercancel']){
+  addEventListener(ev, () => requestAnimationFrame(() => {
+    if (!gizmo.animating) controls.enabled = true;
+  }), true);
 }
-const enc = p => p.split('/').map(encodeURIComponent).join('/');
-// a viewed assembly (or single model) counts as history, including pasted /view links
-fetch('/api/opened', {method:'POST', headers:{'Content-Type':'application/json'},
-  body: JSON.stringify({p: FILES.length > 1 ? FILES : FILES[0]})}).catch(() => {});
-Promise.all(FILES.map(f => fetch('/raw/'+enc(f)).then(r => r.arrayBuffer()))).then(bufs => {
-  const box = new THREE.Box3();
-  bufs.forEach((b,i) => {
-    const m = new THREE.Mesh(parseSTL(b),
-      new THREE.MeshStandardMaterial({color:COLS[i%COLS.length], roughness:.6, metalness:.05}));
-    scene.add(m); box.expandByObject(m);
+
+function syncGizmo(){
+  controls.getTarget(TARGET);
+  gizmo.target = TARGET;
+  gizmo.update(false);          // re-aim the cube at the camera, without driving it back
+}
+
+// ---- loading -------------------------------------------------------------------
+
+function loadSTL(url){
+  return new STLLoader().loadAsync(url).then(g => {
+    const m = new THREE.Mesh(g, null);
+    const o = new THREE.Group(); o.add(m); return o;
   });
-  const c = box.getCenter(new THREE.Vector3()), size = box.getSize(new THREE.Vector3()).length();
-  controls.target.copy(c);
-  camera.position.set(c.x + size*0.7, c.y - size*0.7, c.z + size*0.5);
-  camera.up.set(0,0,1);
-  camera.near = size/100; camera.far = size*10; camera.updateProjectionMatrix();
+}
+
+function loadModel(path){
+  const url = '/raw/' + enc(path);
+  if (ext(path) === '3mf'){
+    return Promise.all([
+      new ThreeMFLoader().loadAsync(url),
+      // the slicer metadata the mesh loader cannot see: real filament colors and the
+      // print summary, read from Metadata/*.config server-side
+      fetch('/api/3mf/' + enc(path)).then(r => r.ok ? r.json() : null).catch(() => null),
+    ]).then(([group, info]) => ({group, info}));
+  }
+  return loadSTL(url).then(group => ({group, info: null}));
+}
+
+const STD = c => new THREE.MeshStandardMaterial({
+  color: new THREE.Color(c), roughness: 0.62, metalness: 0.04,
 });
-addEventListener('resize', () => { camera.aspect = innerWidth/innerHeight;
-  camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
-(function loop(){ requestAnimationFrame(loop); controls.update(); renderer.render(scene, camera); })();
-</script>'''
+
+const parts = [];   // {name, color, tris} for the legend
+
+function colorize(group, info, fileIndex, label){
+  // A 3MF's build items come back as group children in document order, which is the
+  // same order the server reports them in, so item i describes child i.
+  const kids = group.children;
+  // items[i] describes kids[i] only if both describe the same build. On any mismatch
+  // the pairing is meaningless and would paint confident, wrong filament colors, so
+  // fall back to the palette for the whole file instead.
+  let items = (info && info.items) || [];
+  if (items.length !== kids.length) items = [];
+  let tris = 0;
+  kids.forEach((child, i) => {
+    const it = items[i] || {};
+    const col = it.color || COLS[parts.length % COLS.length];
+    const mat = STD(col);
+    child.traverse(o => { if (o.isMesh){
+      o.material = mat;
+      const g = o.geometry;
+      if (!g.attributes.normal) g.computeVertexNormals();
+      tris += (g.index ? g.index.count : (g.attributes.position?.count || 0)) / 3;
+    }});
+    parts.push({name: it.name || (kids.length > 1 ? label + ' #' + (i + 1) : label),
+                named: !!it.name, color: col});
+  });
+  return tris;
+}
+
+function fmtTime(s){
+  if (!s && s !== 0) return null;
+  const h = Math.floor(s / 3600), m = Math.round((s % 3600) / 60);
+  return h ? h + 'h ' + String(m).padStart(2, '0') + 'm' : m + 'm';
+}
+const fmtN = (n, d = 1) => n.toLocaleString(undefined,
+  {minimumFractionDigits: d, maximumFractionDigits: d});
+
+function renderLegend(){
+  if (parts.length < 2 && !(parts[0] && parts[0].named)) return;
+  $('#legend').innerHTML = parts.map(p =>
+    `<div class="m"><span class="sw" style="background:${safeColor(p.color)}"></span>
+     <span class="nm" title="${esc(p.name)}">${esc(p.name)}</span></div>`).join('');
+  $('#legend').hidden = false;
+}
+
+function warn(text){
+  // A part missing from an assembly must be visible: the remaining parts otherwise
+  // look like the whole model, with a bounding box to match.
+  const el = document.createElement('div');
+  el.className = 'pad'; el.id = 'warn'; el.textContent = text;
+  document.body.appendChild(el);
+}
+
+function renderDims(box, tris){
+  const s = box.getSize(new THREE.Vector3());
+  $('#dims').innerHTML =
+    `<b>${fmtN(s.x)} &times; ${fmtN(s.y)} &times; ${fmtN(s.z)} mm</b>
+     <div class="sub">${Math.round(tris).toLocaleString()} triangles</div>`;
+  $('#dims').hidden = false;
+}
+
+function renderInfo(info){
+  if (!info) return;
+  // Every plate's objects are in the scene, so the panel totals every plate. Reporting
+  // plate 1 alone would caption the whole view with part of it.
+  const plates = info.plates || [];
+  const rows = [];
+  const add = (k, v, keep) => { if (v) rows.push(
+    `<div class="r${keep ? ' keep' : ''}"><span class="k">${k}</span>` +
+    `<span class="v">${v}</span></div>`); };
+  const sum = f => plates.reduce((a, p) => a + (f(p) || 0), 0);
+  if (plates.length){
+    const secs = sum(p => p.seconds), grams = sum(p => p.grams);
+    const many = plates.length > 1;
+    add(many ? 'print time, all plates' : 'print time', fmtTime(secs), true);
+    add(many ? 'filament, all plates' : 'filament', grams ? fmtN(grams) + ' g' : null, true);
+    const spools = new Map();          // one row per filament, merged across plates
+    plates.forEach(p => (p.filaments || []).forEach(f => {
+      const k = (f.type || '') + '|' + (f.color || '');
+      const cur = spools.get(k) || {type: f.type, color: f.color, used_m: 0};
+      cur.used_m += f.used_m || 0;
+      spools.set(k, cur);
+    }));
+    if (spools.size) rows.push(
+      `<div class="r"><span class="k">spools</span><span class="v">` +
+      [...spools.values()].map(f =>
+        `<span class="fil"><span class="sw" style="background:${safeColor(f.color)}"></span>` +
+        `${esc(f.type || '')}${f.used_m ? ' &middot; ' + fmtN(f.used_m) + ' m' : ''}</span>`
+      ).join('') + `</span></div>`);
+    if (plates.some(p => p.support)) add('supports', 'on');
+  }
+  add('printer', info.printer ? esc(info.printer) : null);
+  add('layer', info.layer ? info.layer + ' mm' : null);
+  if (plates.length > 1) add('plates', plates.length);
+  if (!rows.length) return;
+  const tag = info.sliced
+    ? '<span class="tag on">sliced &middot; g-code embedded</span>'
+    : '<span class="tag">geometry only &middot; not sliced</span>';
+  $('#info').innerHTML = '<div class="hd">print</div>' + rows.join('') + tag;
+  $('#info').hidden = false;
+}
+
+// Three-quarter view from the front-right and above, the angle slicers open on.
+// The distance is solved rather than handed to fitToBox, which re-aims the camera
+// down an axis and loses the angle.
+const DIR = new THREE.Vector3(0.62, -0.78, 0.55).normalize();
+
+function frame(box){
+  const c = box.getCenter(new THREE.Vector3());
+  const r = (box.getSize(new THREE.Vector3()).length() / 2) || 50;
+  const vFov = THREE.MathUtils.degToRad(camera.fov);
+  const hFov = 2 * Math.atan(Math.tan(vFov / 2) * camera.aspect);
+  const d = 1.18 * Math.max(r / Math.sin(vFov / 2), r / Math.sin(hFov / 2));
+  controls.setTarget(c.x, c.y, c.z, false);
+  controls.setPosition(c.x + DIR.x * d, c.y + DIR.y * d, c.z + DIR.z * d, false);
+  camera.near = Math.max(d / 1000, 0.02);
+  controls.minDistance = Math.max(r / 50, camera.near * 2);
+  controls.maxDistance = d * 8;
+  camera.far = d * 20;
+  camera.updateProjectionMatrix();
+  syncGizmo();
+}
+
+function addGround(box){
+  const size = box.getSize(new THREE.Vector3());
+  const span = Math.max(size.x, size.y) * 2.2 || 200;
+  const step = Math.pow(10, Math.round(Math.log10(span / 12)));
+  const grid = new THREE.GridHelper(Math.ceil(span / step) * step,
+                                    Math.ceil(span / step), 0x3a3b42, 0x25262b);
+  grid.rotation.x = Math.PI / 2;                 // GridHelper is XZ; the bed is XY
+  const c = box.getCenter(new THREE.Vector3());
+  grid.position.set(c.x, c.y, box.min.z);
+  grid.material.transparent = true; grid.material.opacity = 0.5;
+  scene.add(grid);
+}
+
+// A rendered plate cover, when the slicer wrote one, as something to look at while a
+// large mesh downloads and parses. Most headless slices carry none.
+if (FILES.length === 1 && ext(FILES[0]) === '3mf'){
+  const img = new Image();
+  img.onload = () => { const c = $('#cover');
+    if (c.dataset.done !== '1'){ c.appendChild(img); c.style.opacity = '1'; } };
+  img.src = '/thumb/' + enc(FILES[0]);
+}
+
+// A pasted /view link counts as history. Embedded as the preview iframe it does not:
+// the app records deliberate opens itself, and would otherwise log its own auto-select
+// on load and log a real click twice.
+if (window.top === window)
+  fetch('/api/opened', {method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({p: FILES.length > 1 ? FILES : FILES[0]})}).catch(() => {});
+
+Promise.all(FILES.map(f => loadModel(f).catch(e => { console.error(f, e); return null; })))
+  .then(loaded => {
+    const box = new THREE.Box3();
+    let tris = 0, ok = 0, info1 = null;
+    loaded.forEach((res, i) => {
+      if (!res) return;
+      ok++;
+      if (!info1) info1 = res.info;
+      tris += colorize(res.group, res.info, i, base(FILES[i]));
+      scene.add(res.group);
+      box.expandByObject(res.group);
+    });
+    const cover = $('#cover'); cover.dataset.done = '1'; cover.style.opacity = '0';
+    const finite = v => Number.isFinite(v.x) && Number.isFinite(v.y) && Number.isFinite(v.z);
+    if (!ok || box.isEmpty() || !finite(box.min) || !finite(box.max)){
+      // NaN vertices compare false everywhere, so isEmpty() alone lets them through
+      // and they then poison the camera into rendering nothing at all
+      $('#msg').textContent = 'could not read ' +
+        (FILES.length > 1 ? 'these models' : base(FILES[0]));
+      return;
+    }
+    $('#msg').hidden = true;
+    if (ok < FILES.length) warn((FILES.length - ok) + ' of ' + FILES.length +
+                                ' failed to load');
+    addGround(box);
+    frame(box);
+    renderDims(box, tris);
+    renderLegend();
+    if (FILES.length === 1) renderInfo(info1);
+    invalidate();
+  });
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+  gizmo.update();
+});
+
+const timer = new THREE.Timer();
+// Redraw on demand rather than at 60 fps forever: these scenes are static between
+// interactions, and the viewer sits in an always-open iframe.
+let dirty = true;
+const invalidate = () => { dirty = true; };
+controls.addEventListener('update', invalidate);
+gizmo.addEventListener('change', invalidate);
+addEventListener('resize', invalidate);
+// the cube highlights faces on hover, which is a redraw with no camera movement
+const cubeEl = document.getElementById('navcube');
+if (cubeEl) for (const ev of ['pointermove', 'pointerleave', 'pointerdown'])
+  cubeEl.addEventListener(ev, invalidate);
+
+(function loop(){
+  requestAnimationFrame(loop);
+  timer.update();
+  const moved = controls.update(timer.getDelta());
+  if (moved || gizmo.animating) syncGizmo();
+  if (!(moved || gizmo.animating || dirty)) return;   // a still scene costs nothing
+  dirty = false;
+  renderer.render(scene, camera);
+  gizmo.render();
+})();
+</script>"""
 
 
 APP_HTML = r'''<!doctype html>
@@ -448,6 +814,7 @@ const $ = s => document.querySelector(s);
 const IMG = new Set(['png','jpg','jpeg','gif','svg','webp','avif','bmp','ico']);
 const VID = new Set(['mp4','webm','mov','m4v']);
 const AUD = new Set(['mp3','wav','ogg','flac','m4a']);
+const MODEL = new Set(['stl', '3mf']);   // rows that can join an assembly view
 const TXT = new Set(['txt','log','py','js','ts','tsx','jsx','json','yaml','yml','csv','tsv',
   'sh','bash','zsh','toml','ini','cfg','conf','c','cpp','h','hpp','rs','go','java','sql',
   'scad','xml','env','make','mk','dockerfile','caddyfile','service','tf','diff','patch']);
@@ -455,7 +822,7 @@ let FILES = [], SEL = null, CHECKED = new Set(), FILTER = '', COPYURL = null, TA
 
 let HIST = [], OVIS = [];                  // server-side history, shared across devices
 function getHist(){ return HIST; }
-function recordOpen(p){                    // p: file path, 'dir/', or [stl, stl, ...]
+function recordOpen(p){                    // p: file path, 'dir/', or [model, model, ...]
   const k = JSON.stringify(p);
   HIST = [{p, t: Math.floor(Date.now()/1000)}, ...HIST.filter(e => JSON.stringify(e.p) !== k)];
   fetch('/api/opened', {method: 'POST',
@@ -502,9 +869,10 @@ function renderList(){
   const vis = visible(), list = $('#list');
   const row = (f, t, showDir) => {
     const e = ext(f.p), on = f.p === SEL ? ' on' : '';
-    const cb = e === 'stl'
+    const cb = MODEL.has(e)
       ? `<input type="checkbox" data-cb="${esc(f.p)}"${CHECKED.has(f.p)?' checked':''}>` : '';
-    const bg = e === 'stl' ? '<span class="badge">3D</span>'
+    const bg = e === '3mf' ? '<span class="badge">3MF</span>'
+             : e === 'stl' ? '<span class="badge">3D</span>'
              : e === 'html' || e === 'htm' ? '<span class="badge">html</span>' : '';
     const dir = showDir ? `<span class="dir">${esc(dirOf(f.p))}</span>` : '';
     return `<div class="row${on}" data-p="${esc(f.p)}">${cb}
@@ -547,7 +915,7 @@ function renderStlBar(){
   const bar = $('#stlbar');
   if (!CHECKED.size){ bar.hidden = true; return; }
   bar.hidden = false;
-  $('#stlcount').textContent = CHECKED.size + ' STL' + (CHECKED.size > 1 ? 's' : '');
+  $('#stlcount').textContent = CHECKED.size + ' model' + (CHECKED.size > 1 ? 's' : '');
 }
 
 // Markdown via vendored marked (GFM: tables, strikethrough, task lists). Content here is
@@ -572,12 +940,12 @@ function previewDir(dir, record = true){
   if (dir && record) recordOpen(dir + '/'); // visited folder views count as history
   const fs = FILES.filter(f => dirOf(f.p) === dir);
   const imgs = fs.filter(f => IMG.has(ext(f.p)));
-  const stls = fs.filter(f => ext(f.p) === 'stl');
+  const models = fs.filter(f => MODEL.has(ext(f.p)));
   const rest = fs.filter(f => !IMG.has(ext(f.p)));
   showHead((dir || '/') + '/', fs.length + ' files', null);
   let h = '';
-  if (stls.length > 1)
-    h += `<div class="filelist"><button class="big" id="dirstl">view ${stls.length} STLs together</button></div>`;
+  if (models.length > 1)
+    h += `<div class="filelist"><button class="big" id="dirstl">view ${models.length} models together</button></div>`;
   if (imgs.length){
     h += '<div class="grid">' + imgs.map(f =>
       `<figure data-p="${esc(f.p)}"><img src="/raw/${enc(f.p)}" loading="lazy">
@@ -592,7 +960,7 @@ function previewDir(dir, record = true){
   pane.querySelectorAll('[data-p]').forEach(el => el.addEventListener('click', ev => {
     ev.preventDefault(); select(el.dataset.p, true); }));
   const b = $('#dirstl');
-  if (b) b.addEventListener('click', () => viewStls(stls.map(f => f.p)));
+  if (b) b.addEventListener('click', () => viewStls(models.map(f => f.p)));
   renderList();
 }
 
@@ -603,7 +971,7 @@ function preview(f){
     pane.innerHTML = `<div class="imgwrap"><img src="${raw}"></div>`;
   } else if (e === 'html' || e === 'htm' || e === 'pdf'){
     pane.innerHTML = `<iframe src="${raw}"></iframe>`;
-  } else if (e === 'stl'){
+  } else if (MODEL.has(e)){
     pane.innerHTML = `<iframe class="dark" src="/view?f=${encodeURIComponent(f.p)}"></iframe>`;
   } else if (VID.has(e)){
     pane.innerHTML = `<video controls autoplay muted src="${raw}"></video>`;
@@ -656,7 +1024,7 @@ function viewStls(paths){
   SEL = null;
   const q = paths.map(encodeURIComponent).join(',');
   COPYURL = '/view?f=' + q;
-  showHead(paths.length + ' STL assembly', paths.map(base).join(' + '), null);
+  showHead(paths.length + ' model assembly', paths.map(base).join(' + '), null);
   $('#pane').innerHTML = `<iframe class="dark" src="/view?f=${q}"></iframe>`;
   renderList();
 }
@@ -745,6 +1113,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
     def _send(self, code, ctype, body, extra=None):
         self.send_response(code)
         self.send_header('Content-Type', ctype)
+        self.send_header('X-Content-Type-Options', 'nosniff')
         self.send_header('Content-Length', str(len(body)))
         for k, v in (extra or {}).items():
             self.send_header(k, v)
@@ -774,6 +1143,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             ctype += '; charset=utf-8'
         self.send_response(200)
         self.send_header('Content-Type', ctype)
+        self.send_header('X-Content-Type-Options', 'nosniff')
         self.send_header('Content-Length', str(st.st_size))
         self.send_header('Last-Modified', lm)
         self.send_header('Cache-Control', 'no-cache')
@@ -811,6 +1181,17 @@ class Handler(http.server.BaseHTTPRequestHandler):
         return self._send(200, 'application/json', b'{"ok":true}')
 
     def do_GET(self):
+        try:
+            return self._route()
+        except Exception:
+            # keep-alive means an escaping exception kills the whole connection, and
+            # every route here is reachable from a link someone pasted
+            try:
+                return self._send(500, 'text/plain', b'server error')
+            except Exception:
+                return
+
+    def _route(self):
         parsed = urllib.parse.urlparse(self.path)
         path = urllib.parse.unquote(parsed.path)
 
@@ -828,13 +1209,46 @@ class Handler(http.server.BaseHTTPRequestHandler):
                               {'Cache-Control': 'no-store'})
 
         if path.startswith('/_viewerlib/'):
-            name = os.path.basename(path)
-            p = os.path.join(VIEWERLIB, name)
-            if os.path.isfile(p):
+            # subdirectories matter: the three.js addons import siblings by relative
+            # path ('../libs/fflate.module.js'), so the vendored tree is served as-is
+            rel = path[len('/_viewerlib/'):]
+            p = os.path.realpath(os.path.join(VIEWERLIB, rel))
+            if (p == VIEWERLIB or p.startswith(VIEWERLIB + os.sep)) and os.path.isfile(p):
                 with open(p, 'rb') as fh:
                     return self._send(200, 'application/javascript', fh.read(),
                                       {'Cache-Control': 'max-age=86400'})
             return self._send(404, 'text/plain', b'not found')
+
+        if path.startswith('/api/3mf/'):
+            full = resolve(path[len('/api/3mf/'):])
+            if full is None or not os.path.isfile(full):
+                return self._send(404, 'application/json', b'null')
+            info = model_info(full)
+            return self._send(200, 'application/json', json.dumps(info).encode(),
+                              {'Cache-Control': 'no-cache'})
+
+        if path.startswith('/thumb/'):
+            # the plate cover the slicer rendered into the 3MF, when it managed to
+            full = resolve(path[len('/thumb/'):])
+            if full is None or not os.path.isfile(full):
+                return self._send(404, 'text/plain', b'not found')
+            info = model_info(full)
+            member = (info or {}).get('thumb')
+            if not member:
+                return self._send(404, 'text/plain', b'no thumbnail')
+            try:
+                with zipfile.ZipFile(full) as zf:
+                    if zf.getinfo(member).file_size > 8 * 1024 * 1024:
+                        return self._send(404, 'text/plain', b'no thumbnail')
+                    png = zf.read(member)
+            except (OSError, KeyError, ValueError, zipfile.BadZipFile,
+                    RuntimeError, NotImplementedError, EOFError):
+                # an encrypted or undecompressable member is a missing cover, not a crash
+                return self._send(404, 'text/plain', b'no thumbnail')
+            import email.utils as eut
+            lm = eut.formatdate(os.path.getmtime(full), usegmt=True)
+            return self._send(200, 'image/png', png,
+                              {'Cache-Control': 'no-cache', 'Last-Modified': lm})
 
         if path == '/view':
             q = urllib.parse.parse_qs(parsed.query).get('f', [''])[0]
@@ -844,12 +1258,13 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 full = resolve(r)
                 if full and os.path.isfile(full):
                     files.append(os.path.relpath(full, ROOT).replace(os.sep, '/'))
+            files = files[:MAX_ASSEMBLY]
             if not files:
-                return self._send(404, 'text/plain', b'no such stl')
+                return self._send(404, 'text/plain', b'no such model')
             import html as _html
             title = ' + '.join(os.path.basename(f) for f in files)
-            body = (VIEWER_HTML.replace('%FILES%', script_json(files))
-                               .replace('%TITLE%', _html.escape(title)))
+            body = (VIEWER_HTML.replace('%TITLE%', _html.escape(title))
+                               .replace('%FILES%', script_json(files)))
             return self._send(200, 'text/html; charset=utf-8', body.encode())
 
         if path.startswith('/raw/'):
