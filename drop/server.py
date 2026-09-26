@@ -262,6 +262,7 @@ canvas{display:block;touch-action:none}
 import * as THREE from 'three';
 import {STLLoader} from '/_viewerlib/loaders/STLLoader.js';
 import {ThreeMFLoader} from '/_viewerlib/loaders/3MFLoader.js';
+import {toCreasedNormals} from '/_viewerlib/utils/BufferGeometryUtils.js';
 import CameraControls from '/_viewerlib/camera-controls.module.min.js';
 import {ViewportGizmo} from '/_viewerlib/three-viewport-gizmo.js';
 
@@ -382,6 +383,9 @@ const STD = c => new THREE.MeshStandardMaterial({
   color: new THREE.Color(c), roughness: 0.62, metalness: 0.04,
 });
 
+// Edges sharper than this stay sharp; anything shallower is treated as curvature.
+const CREASE = Math.PI / 6;
+
 const parts = [];   // {name, color, tris} for the legend
 
 function colorize(group, info, fileIndex, label){
@@ -401,8 +405,16 @@ function colorize(group, info, fileIndex, label){
     child.traverse(o => { if (o.isMesh){
       o.material = mat;
       const g = o.geometry;
-      if (!g.attributes.normal) g.computeVertexNormals();
       tris += (g.index ? g.index.count : (g.attributes.position?.count || 0)) / 3;
+      if (!g.attributes.normal){
+        // 3MF stores no normals, and the mesh is indexed with vertices shared across
+        // hard edges. Averaging normals over that smooths every edge at once, which
+        // smears chamfers and lays shading artifacts across flat panels. Creasing
+        // splits the sharp edges and smooths only genuine curvature. STL is left
+        // alone: it ships per-facet normals that are already correct.
+        o.geometry = toCreasedNormals(g, CREASE);
+        g.dispose();
+      }
     }});
     parts.push({name: it.name || (kids.length > 1 ? label + ' #' + (i + 1) : label),
                 named: !!it.name, color: col});
