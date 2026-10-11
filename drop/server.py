@@ -2,7 +2,10 @@
 
 Serves DROP_ROOT read-only as a single-page file browser: a newest-first file list
 grouped by directory, with an inline preview pane (HTML, images, STL/3MF model
-assemblies, markdown, text, PDF, video). GET-only, stdlib-only, no upload routes.
+assemblies, markdown, text, PDF, video). Stdlib-only, no upload routes. The two write
+routes are POST /api/opened (opened-history) and PUT /api/state/<key> (small JSON
+documents that interactive deliverables save, so their state follows Rohan across
+devices); both write only into DROP_STATE, never into DROP_ROOT.
 
 Routes:
   /                  browser UI (newest file preselected)
@@ -12,6 +15,7 @@ Routes:
   /api/3mf/<path>    3MF slicer metadata (filament colors, plate summary) as JSON
   /thumb/<path>      the plate cover rendered into a 3MF, when it has one
   /api/tree          flat JSON file list, newest first
+  /api/state/<key>   GET: the saved JSON document (null if none); PUT: replace it
   /_viewerlib/<js>   vendored viewer modules (three.js, loaders, controls, gizmo)
   /healthz           200 ok
 
@@ -22,6 +26,7 @@ import http.server
 import json
 import mimetypes
 import os
+import re
 import threading
 import time
 import urllib.parse
@@ -196,6 +201,64 @@ def record_opened(rel):
         with open(tmp, 'w') as fh:
             json.dump(entries, fh)
         os.replace(tmp, path)
+
+
+
+# Deliverable state: small JSON documents an interactive HTML deliverable saves (a
+# checklist's progress, booked dates), one file per key in the state volume. Bounded
+# in key shape, document size and key count so a page cannot fill the volume.
+STATE_KEY_RE = re.compile(r'^[a-z0-9][a-z0-9-]{0,63}$')
+STATE_MAX_BYTES = 64 * 1024
+STATE_MAX_KEYS = 64
+_state_lock = threading.Lock()
+_state_mem = {}
+
+
+def _state_dir():
+    return os.path.join(STATE, 'state') if STATE else None
+
+
+def load_state(key):
+    """The saved document for key, or None (absent, unreadable, or a bad key)."""
+    if not STATE_KEY_RE.match(key or ''):
+        return None
+    folder = _state_dir()
+    if not folder:
+        return _state_mem.get(key)
+    try:
+        with open(os.path.join(folder, key + '.json')) as fh:
+            return json.load(fh)
+    except (OSError, ValueError):
+        return None
+
+
+def save_state(key, doc):
+    """Replace the document for key. Returns an error string, or None on success."""
+    if not STATE_KEY_RE.match(key or ''):
+        return 'bad key'
+    if not isinstance(doc, dict):
+        return 'document must be a JSON object'
+    body = json.dumps(doc, separators=(',', ':'))
+    if len(body.encode()) > STATE_MAX_BYTES:
+        return 'too large'
+    with _state_lock:
+        folder = _state_dir()
+        if not folder:
+            if key not in _state_mem and len(_state_mem) >= STATE_MAX_KEYS:
+                return 'too many keys'
+            _state_mem[key] = doc
+            return None
+        os.makedirs(folder, exist_ok=True)
+        path = os.path.join(folder, key + '.json')
+        if not os.path.exists(path):
+            existing = [n for n in os.listdir(folder) if n.endswith('.json')]
+            if len(existing) >= STATE_MAX_KEYS:
+                return 'too many keys'
+        tmp = path + '.tmp'
+        with open(tmp, 'w') as fh:
+            fh.write(body)
+        os.replace(tmp, path)
+    return None
 
 
 VIEWER_HTML = r"""<!doctype html><meta charset="utf-8">
@@ -1194,6 +1257,30 @@ class Handler(http.server.BaseHTTPRequestHandler):
         record_opened(rel)
         return self._send(200, 'application/json', b'{"ok":true}')
 
+    def do_PUT(self):
+        # Deliverable state. A cross-origin page cannot reach this: PUT with a JSON body
+        # always triggers a CORS preflight, which this server never answers.
+        path = urllib.parse.unquote(urllib.parse.urlparse(self.path).path)
+        if not path.startswith('/api/state/'):
+            return self._send(404, 'text/plain', b'not found')
+        if not (self.headers.get('Content-Type') or '').startswith('application/json'):
+            return self._send(415, 'text/plain', b'json only')
+        try:
+            n = int(self.headers.get('Content-Length', '0'))
+        except ValueError:
+            n = -1
+        if n < 0 or n > STATE_MAX_BYTES:
+            return self._send(413, 'text/plain', b'too large')
+        try:
+            doc = json.loads(self.rfile.read(n) or b'null')
+        except (ValueError, UnicodeDecodeError):
+            return self._send(400, 'text/plain', b'bad json')
+        err = save_state(path[len('/api/state/'):], doc)
+        if err:
+            return self._send(413 if err in ('too large', 'too many keys') else 400,
+                              'text/plain', err.encode())
+        return self._send(200, 'application/json', b'{"ok":true}')
+
     def do_GET(self):
         try:
             return self._route()
@@ -1219,6 +1306,14 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
         if path == '/api/opened':
             body = json.dumps(load_opened()).encode()
+            return self._send(200, 'application/json', body,
+                              {'Cache-Control': 'no-store'})
+
+        if path.startswith('/api/state/'):
+            key = path[len('/api/state/'):]
+            if not STATE_KEY_RE.match(key):
+                return self._send(404, 'application/json', b'null')
+            body = json.dumps(load_state(key)).encode()
             return self._send(200, 'application/json', body,
                               {'Cache-Control': 'no-store'})
 

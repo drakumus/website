@@ -356,6 +356,16 @@ class LiveServer:
         self.srv.server_close()
         self.thread.join(timeout=5)
 
+    def request(self, method, path, body=None, headers=None):
+        import http.client
+        conn = http.client.HTTPConnection('127.0.0.1', self.port, timeout=10)
+        try:
+            conn.request(method, path, body=body, headers=headers or {})
+            r = conn.getresponse()
+            return r.status, r.read(), dict(r.getheaders())
+        finally:
+            conn.close()
+
     def get(self, path, method='GET'):
         import http.client
         conn = http.client.HTTPConnection('127.0.0.1', self.port, timeout=10)
@@ -450,6 +460,75 @@ class Routes(unittest.TestCase):
             status, body, _ = s.get('/api/3mf/proj/a.txt')
         self.assertEqual(status, 200)
         self.assertIsNone(json.loads(body))
+
+
+class DeliverableState(unittest.TestCase):
+    """PUT/GET /api/state/<key>: the store interactive deliverables save progress into.
+    It writes only into the state volume and stays bounded in key, size and count."""
+
+    def setUp(self):
+        server.STATE = tempfile.mkdtemp(prefix='drop-state-')
+
+    def put(self, s, key, doc, ctype='application/json'):
+        body = doc if isinstance(doc, bytes) else json.dumps(doc).encode()
+        return s.request('PUT', '/api/state/' + key, body, {'Content-Type': ctype})
+
+    def test_round_trip_over_the_wire(self):
+        with LiveServer() as s:
+            status, _, _ = self.put(s, 'office-remodel', {'v': 1, 'data': {'p0-1': '1'}})
+            self.assertEqual(status, 200)
+            status, body, headers = s.get('/api/state/office-remodel')
+        self.assertEqual(status, 200)
+        self.assertEqual(json.loads(body), {'v': 1, 'data': {'p0-1': '1'}})
+        self.assertEqual(headers['Cache-Control'], 'no-store')
+
+    def test_missing_key_reads_null(self):
+        with LiveServer() as s:
+            status, body, _ = s.get('/api/state/never-saved')
+        self.assertEqual(status, 200)
+        self.assertIsNone(json.loads(body))
+
+    def test_writes_land_in_the_state_volume_only(self):
+        before = set(os.listdir(server.ROOT))
+        with LiveServer() as s:
+            self.put(s, 'office-remodel', {'a': 1})
+        self.assertEqual(set(os.listdir(server.ROOT)), before)
+        self.assertTrue(os.path.isfile(
+            os.path.join(server.STATE, 'state', 'office-remodel.json')))
+
+    def test_rejects_bad_keys_and_bodies(self):
+        with LiveServer() as s:
+            for key in ('../opened', 'UPPER', '-lead', 'a/b', 'x' * 65, '', 'a.json'):
+                status, _, _ = self.put(s, key, {'a': 1})
+                self.assertIn(status, (400, 404), key)
+            self.assertEqual(self.put(s, 'ok-key', [1, 2])[0], 400)
+            self.assertEqual(self.put(s, 'ok-key', b'not json')[0], 400)
+            self.assertEqual(self.put(s, 'ok-key', {'a': 1}, ctype='text/plain')[0], 415)
+            big = {'pad': 'x' * (server.STATE_MAX_BYTES + 10)}
+            self.assertEqual(self.put(s, 'ok-key', big)[0], 413)
+            status, body, _ = s.get('/api/state/..%2fopened')
+        self.assertEqual(status, 404)
+        self.assertFalse(os.path.exists(os.path.join(server.STATE, 'state', 'ok-key.json')))
+
+    def test_key_count_is_capped(self):
+        for i in range(server.STATE_MAX_KEYS):
+            self.assertIsNone(server.save_state(f'k{i}', {}))
+        self.assertEqual(server.save_state('one-more', {}), 'too many keys')
+        self.assertIsNone(server.save_state('k0', {'updated': True}))   # replacing is fine
+
+    def test_cross_origin_preflight_is_never_granted(self):
+        # A foreign page can only PUT JSON after a successful CORS preflight.
+        with LiveServer() as s:
+            status, _, headers = s.request('OPTIONS', '/api/state/office-remodel', headers={
+                'Origin': 'https://evil.example', 'Access-Control-Request-Method': 'PUT'})
+        self.assertGreaterEqual(status, 400)
+        self.assertNotIn('Access-Control-Allow-Origin', headers)
+
+    def test_other_put_paths_are_not_routes(self):
+        with LiveServer() as s:
+            status, _, _ = s.request('PUT', '/raw/proj/a.txt', b'{}',
+                                     {'Content-Type': 'application/json'})
+        self.assertEqual(status, 404)
 
 
 if __name__ == '__main__':

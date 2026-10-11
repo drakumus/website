@@ -153,7 +153,8 @@ drop.zoci.me {
 	route {
 		import tailnet_guard
 		# Agent deliverables previewer (the drop container). Read-only file serving; content
-		# arrives via host-side file writes. The single POST route is the opened-history.
+		# arrives via host-side file writes. The write routes (opened-history, deliverable
+		# state) touch only the drop_state volume; tailnet_guard above keeps them private.
 		reverse_proxy 127.0.0.1:8092
 	}
 }

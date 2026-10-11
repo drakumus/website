@@ -304,9 +304,9 @@ services:
     # Tailnet-only previewer for agent deliverables (see ~/specs/drop-server.md). Serves the
     # DROP_DIR/APOLLO_DIR host directories read-only as a file browser with inline previews
     # (HTML, images, multi-STL 3D assemblies). Stdlib Python, no upload routes; the write path
-    # for content is agents on the host writing plain files into DROP_DIR. The one mutation
-    # route is POST /api/opened (bounded opened-history JSON in the drop_state volume, so the
-    # recently-opened list follows Rohan across devices). Published on host loopback for the
+    # for content is agents on the host writing plain files into DROP_DIR. The mutation routes
+    # (opened-history and deliverable state, see drop/server.py) write only into the drop_state
+    # volume, so both follow Rohan across devices. Published on host loopback for the
     # tailnet-gated drop.zoci.me vhost only, never the LAN or internet.
     build:
       context: ../drop
