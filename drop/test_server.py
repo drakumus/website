@@ -531,5 +531,100 @@ class DeliverableState(unittest.TestCase):
         self.assertEqual(status, 404)
 
 
+class PhoneUpload(unittest.TestCase):
+    """PUT /api/upload/<name>: the one route that writes content. It lands files only
+    in the dated uploads folder, never overwrites, and never leaves a partial file."""
+
+    def setUp(self):
+        server.UPLOADS = os.path.realpath(tempfile.mkdtemp(prefix='uploads-', dir=server.ROOT))
+
+    def tearDown(self):
+        server.UPLOADS = ''
+
+    def put(self, s, name, body):
+        return s.request('PUT', '/api/upload/' + name, body,
+                         {'Content-Type': 'application/octet-stream'})
+
+    def landed(self):
+        out = []
+        for base, _, files in os.walk(server.UPLOADS):
+            out += [os.path.join(base, f) for f in files]
+        return out
+
+    def test_round_trip_is_byte_exact_and_listed(self):
+        data = bytes(range(256)) * 5000
+        with LiveServer() as s:
+            status, body, _ = self.put(s, 'PXL_20261010.jpg', data)
+            self.assertEqual(status, 200)
+            rel = json.loads(body)['path']
+            status, raw, _ = s.get('/raw/' + rel)
+        self.assertEqual(raw, data)
+        self.assertRegex(rel, r'/\d{4}-\d{2}-\d{2}/PXL_20261010\.jpg$')
+        self.assertIn(rel, [f['p'] for f in server.build_tree()['files']])
+
+    def test_collisions_get_a_suffix(self):
+        with LiveServer() as s:
+            paths = [json.loads(self.put(s, 'a.jpg', b'x' * n)[1])['path'] for n in (1, 2, 3)]
+        self.assertEqual([os.path.basename(p) for p in paths], ['a.jpg', 'a-1.jpg', 'a-2.jpg'])
+
+    def test_names_cannot_escape_the_uploads_folder(self):
+        with LiveServer() as s:
+            for name in ('..%2f..%2fescape.jpg', '%2e%2e', 'a%5c..%5cb.jpg', '.hidden'):
+                status, body, _ = self.put(s, name, b'x')
+                if status == 200:
+                    full = os.path.join(server.ROOT, json.loads(body)['path'])
+                    self.assertTrue(full.startswith(server.UPLOADS + os.sep), name)
+                    self.assertFalse(os.path.basename(full).startswith('.'), name)
+        self.assertFalse(os.path.exists(os.path.join(server.ROOT, 'escape.jpg')))
+
+    def test_rejects_empty_and_oversize(self):
+        with LiveServer() as s:
+            self.assertEqual(self.put(s, 'a.jpg', b'')[0], 413)
+            status, _, _ = s.request('PUT', '/api/upload/a.jpg', None, {
+                'Content-Length': str(server.UPLOAD_MAX_BYTES + 1)})
+            self.assertEqual(status, 413)
+        self.assertEqual(self.landed(), [])
+
+    def test_short_body_leaves_nothing_behind(self):
+        import socket
+        with LiveServer() as s:
+            sock = socket.create_connection(('127.0.0.1', s.port))
+            sock.sendall(b'PUT /api/upload/cut.jpg HTTP/1.1\r\nHost: x\r\n'
+                         b'Content-Length: 1000\r\n\r\n' + b'x' * 10)
+            sock.shutdown(socket.SHUT_WR)
+            sock.recv(1024)
+            sock.close()
+        self.assertEqual(self.landed(), [])
+
+    def test_unwritable_uploads_dir_answers_503(self):
+        # the shape of a detached bind mount: the path exists but cannot be written
+        server.UPLOADS = os.path.join(server.UPLOADS, 'missing', 'x')
+        os.chmod(os.path.dirname(os.path.dirname(server.UPLOADS)), 0o500)
+        try:
+            with LiveServer() as s:
+                status, body, _ = self.put(s, 'a.jpg', b'x')
+        finally:
+            os.chmod(os.path.dirname(os.path.dirname(server.UPLOADS)), 0o700)
+        self.assertEqual((status, body), (503, b'uploads unavailable'))
+
+    def test_mount_check_reads_the_mount_table(self):
+        server.UPLOADS = '/'
+        self.assertTrue(server.uploads_mounted())
+        server.UPLOADS = os.path.realpath(tempfile.mkdtemp())
+        self.assertFalse(server.uploads_mounted())
+
+    def test_disabled_without_an_uploads_dir(self):
+        server.UPLOADS = ''
+        with LiveServer() as s:
+            self.assertEqual(self.put(s, 'a.jpg', b'x')[0], 404)
+            self.assertEqual(s.get('/upload')[0], 404)
+
+    def test_upload_page_served(self):
+        with LiveServer() as s:
+            status, body, _ = s.get('/upload')
+        self.assertEqual(status, 200)
+        self.assertIn(b'/api/upload/', body)
+
+
 if __name__ == '__main__':
     unittest.main()

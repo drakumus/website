@@ -2,7 +2,8 @@
 
 Serves DROP_ROOT read-only as a single-page file browser: a newest-first file list
 grouped by directory, with an inline preview pane (HTML, images, STL/3MF model
-assemblies, markdown, text, PDF, video). Stdlib-only, no upload routes. The two write
+assemblies, markdown, text, PDF, video). Stdlib-only. Content writes are
+limited to PUT /api/upload/<name> (phone uploads into DROP_UPLOADS). The two state write
 routes are POST /api/opened (opened-history) and PUT /api/state/<key> (small JSON
 documents that interactive deliverables save, so their state follows Rohan across
 devices); both write only into DROP_STATE, never into DROP_ROOT.
@@ -16,6 +17,8 @@ Routes:
   /thumb/<path>      the plate cover rendered into a 3MF, when it has one
   /api/tree          flat JSON file list, newest first
   /api/state/<key>   GET: the saved JSON document (null if none); PUT: replace it
+  /upload            phone upload page (photos and videos into DROP_UPLOADS)
+  /api/upload/<name> PUT: the raw file body, landed as DROP_UPLOADS/<date>/<name>
   /_viewerlib/<js>   vendored viewer modules (three.js, loaders, controls, gizmo)
   /healthz           200 ok
 
@@ -38,6 +41,7 @@ ROOT = os.path.realpath(os.environ.get('DROP_ROOT', '/data'))
 PORT = int(os.environ.get('DROP_PORT', '8484'))
 BIND = os.environ.get('DROP_BIND', '0.0.0.0')
 STATE = os.environ.get('DROP_STATE', '')   # writable dir for opened-history; in-memory if unset
+UPLOADS = os.path.realpath(os.environ['DROP_UPLOADS']) if os.environ.get('DROP_UPLOADS') else ''   # writable dir under ROOT for phone uploads; off if unset
 VIEWERLIB = os.path.realpath(
     os.path.join(os.path.dirname(os.path.abspath(__file__)), 'viewerlib'))
 
@@ -259,6 +263,170 @@ def save_state(key, doc):
             fh.write(body)
         os.replace(tmp, path)
     return None
+
+
+# Phone uploads: one raw-body PUT per file, landed under UPLOADS/<YYYY-MM-DD>/. The body
+# streams to a dotfile (hidden from the tree) and is renamed into place once complete, so
+# the list never shows a partial file. Names are reduced to a safe charset and never
+# overwrite: a collision gets a -1, -2 suffix.
+UPLOAD_MAX_BYTES = 4 * 1024 ** 3
+UPLOAD_FREE_MARGIN = 2 * 1024 ** 3
+UPLOAD_NAME_RE = re.compile(r'[^A-Za-z0-9._ ()-]+')
+_upload_lock = threading.Lock()
+
+
+def upload_name(raw):
+    """A safe base filename from a client-supplied name, or None."""
+    name = UPLOAD_NAME_RE.sub('_', os.path.basename((raw or '').replace('\\', '/'))).strip(' .')
+    return name[:120] or None
+
+
+def store_upload(name, length, stream):
+    """Stream length bytes into the dated uploads folder. Returns (rel_path, None) or (None, error)."""
+    import shutil
+    folder = os.path.join(UPLOADS, time.strftime('%Y-%m-%d'))
+    try:
+        os.makedirs(folder, exist_ok=True)
+        free = shutil.disk_usage(folder).free
+    except OSError:
+        return None, 'uploads unavailable'
+    if free < length + UPLOAD_FREE_MARGIN:
+        return None, 'disk full'
+    tmp = os.path.join(folder, f'.part-{threading.get_ident()}-{time.time_ns()}')
+    remaining = length
+    try:
+        with open(tmp, 'wb') as fh:
+            while remaining:
+                chunk = stream.read(min(remaining, 1024 * 1024))
+                if not chunk:
+                    raise OSError('short body')
+                fh.write(chunk)
+                remaining -= len(chunk)
+        stem, ext = os.path.splitext(name)
+        with _upload_lock:
+            final, n = os.path.join(folder, name), 0
+            while os.path.exists(final):
+                n += 1
+                final = os.path.join(folder, f'{stem}-{n}{ext}')
+            os.rename(tmp, final)
+    except OSError:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        return None, 'incomplete'
+    _tree_cache['at'] = 0.0
+    return os.path.relpath(final, ROOT), None
+
+
+def uploads_mounted():
+    """Whether UPLOADS is still its own mount. A bind mount follows the directory it was
+    created on, so when the host directory is deleted and recreated the mount is
+    detached and the path falls through to the read-only parent. Only a container
+    restart re-binds it, so the watchdog exits and the restart policy brings it back."""
+    try:
+        with open('/proc/self/mounts') as fh:
+            points = {line.split()[1].replace('\\040', ' ') for line in fh}
+    except OSError:
+        return True
+    return UPLOADS in points
+
+
+def watch_uploads_mount(interval=15):
+    while True:
+        time.sleep(interval)
+        if not uploads_mounted():
+            print(f'drop: {UPLOADS} is no longer mounted; exiting so the restart policy '
+                  're-binds it', flush=True)
+            os._exit(1)
+
+
+UPLOAD_HTML = r"""<!doctype html><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#131417">
+<title>drop upload</title>
+<style>
+/* Tokens mirror shared/theme.css, as in the browser page. */
+:root{--bg:#131417;--panel:#16171a;--line:rgba(255,255,255,0.08);--fg:#ececec;--dim:#9a9a9a;
+      --faint:#6f6f6f;--acc:#c62828;--acc-soft:#e44d4d;--gold:rgba(196,160,84,0.28);--gold-text:#c4a054}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);
+     font:15px/1.5 "Open Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif}
+main{max-width:560px;margin:0 auto;padding:20px 16px 60px}
+h1{font-size:17px;margin:0 0 4px}
+h1 a{color:var(--faint);font-weight:400;font-size:13px;margin-left:10px;text-decoration:none}
+p.sub{color:var(--dim);margin:0 0 18px;font-size:13px}
+label.pick{display:block;text-align:center;padding:28px 12px;border:1px dashed var(--gold);
+  border-radius:8px;background:var(--panel);cursor:pointer;font-weight:700;color:var(--acc-soft);
+  transition:background-color 150ms ease,border-color 150ms ease}
+label.pick:hover,label.pick.over{background:#1d1e23;border-color:var(--gold-text)}
+label.pick small{display:block;color:var(--faint);font-weight:400;margin-top:4px}
+input[type=file]{display:none}
+#sum{margin:16px 0 8px;color:var(--dim);font-size:13px;min-height:1.5em}
+#sum a{color:var(--gold-text)}
+.f{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--line);font-size:13px}
+.f .n{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.f .s{color:var(--faint);flex-shrink:0;width:64px;text-align:right}
+.f .bar{width:80px;height:4px;background:var(--line);border-radius:2px;overflow:hidden;flex-shrink:0}
+.f .bar i{display:block;height:100%;width:0;background:var(--acc);transition:width 150ms ease}
+.f.ok .bar i{background:var(--gold-text)}
+.f.err .s{color:var(--acc-soft)}
+</style>
+<main>
+ <h1>upload<a href="/">browse drop</a></h1>
+ <p class="sub">Photos and videos land in <code>drop/uploads/&lt;date&gt;/</code> at full quality.</p>
+ <label class="pick" id="pick">Choose photos or videos<small>or drop files here</small>
+  <input type="file" id="in" multiple accept="image/*,video/*"></label>
+ <div id="sum"></div>
+ <div id="files"></div>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const queue=[];let active=0,done=0,failed=0,total=0,lastDir='';
+const fmt=b=>b<1048576?(b/1024).toFixed(0)+' KB':(b/1048576).toFixed(1)+' MB';
+function summary(){
+  const left=total-done-failed;
+  let t=left?`uploading, ${done} of ${total} done…`:`${done} uploaded`;
+  if(failed)t+=`, ${failed} failed`;
+  $('sum').innerHTML='';$('sum').append(t);
+  if(!left&&lastDir){const a=document.createElement('a');a.href='/d/'+lastDir+'/';
+    a.textContent='open folder';$('sum').append(' · ',a);}
+}
+function add(list){
+  for(const file of list){
+    const row=document.createElement('div');row.className='f';
+    row.innerHTML='<span class="n"></span><span class="bar"><i></i></span><span class="s"></span>';
+    row.querySelector('.n').textContent=file.name;row.querySelector('.s').textContent=fmt(file.size);
+    $('files').prepend(row);queue.push({file,row});total++;
+  }
+  summary();pump();
+}
+function pump(){
+  while(active<3&&queue.length){active++;send(queue.shift());}
+}
+function send({file,row},attempt=0){
+  const x=new XMLHttpRequest();const bar=row.querySelector('i');
+  x.open('PUT','/api/upload/'+encodeURIComponent(file.name));
+  x.setRequestHeader('Content-Type','application/octet-stream');
+  x.upload.onprogress=e=>{if(e.lengthComputable)bar.style.width=(100*e.loaded/e.total)+'%';};
+  const finish=ok=>{active--;ok?done++:failed++;summary();pump();};
+  x.onload=()=>{
+    if(x.status===200){const r=JSON.parse(x.responseText);lastDir=r.path.replace(/\/[^/]*$/,'');
+      row.classList.add('ok');bar.style.width='100%';finish(true);}
+    else{row.classList.add('err');row.querySelector('.s').textContent=x.responseText||x.status;finish(false);}
+  };
+  x.onerror=()=>{if(attempt<2){bar.style.width='0';send({file,row},attempt+1);}
+    else{row.classList.add('err');row.querySelector('.s').textContent='network';finish(false);}};
+  x.send(file);
+}
+$('in').onchange=e=>{add(e.target.files);e.target.value='';};
+const pick=$('pick');
+pick.ondragover=e=>{e.preventDefault();pick.classList.add('over');};
+pick.ondragleave=()=>pick.classList.remove('over');
+pick.ondrop=e=>{e.preventDefault();pick.classList.remove('over');add(e.dataTransfer.files);};
+addEventListener('beforeunload',e=>{if(active||queue.length){e.preventDefault();}});
+</script>
+"""
 
 
 VIEWER_HTML = r"""<!doctype html><meta charset="utf-8">
@@ -694,6 +862,8 @@ body{margin:0;background:var(--bg);color:var(--fg);height:100vh;overflow:hidden;
 #side header{padding:12px 14px 8px}
 #side h1{font-size:15px;margin:0 0 8px;color:var(--fg);font-weight:700}
 #side h1 small{color:var(--faint);font-weight:400;margin-left:8px}
+#upl{float:right;color:var(--gold-text);font-weight:400;font-size:12px;text-decoration:none}
+#upl:hover{color:var(--fg)}
 #q{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:4px;
    color:var(--fg);padding:6px 9px;font-size:13px;font-family:inherit;outline:none}
 #q:focus{border-color:var(--gold-text)}
@@ -860,7 +1030,7 @@ button.big:hover,a.big:hover{background:var(--acc-dark)}
 <div id="app">
  <aside id="side">
   <header>
-   <h1>drop<small id="cnt"></small></h1>
+   <h1>drop<small id="cnt"></small><a id="upl" href="/upload">upload</a></h1>
    <input id="q" placeholder="filter files…" autocomplete="off">
    <div id="tabs">
     <button data-t="m" class="on">modified</button>
@@ -1258,9 +1428,23 @@ class Handler(http.server.BaseHTTPRequestHandler):
         return self._send(200, 'application/json', b'{"ok":true}')
 
     def do_PUT(self):
+        try:
+            return self._route_put()
+        except Exception:
+            # same guard as GET: an escaping exception drops the connection, which the
+            # upload page can only report as a network failure
+            self.close_connection = True
+            try:
+                return self._send(500, 'text/plain', b'server error')
+            except Exception:
+                return
+
+    def _route_put(self):
         # Deliverable state. A cross-origin page cannot reach this: PUT with a JSON body
         # always triggers a CORS preflight, which this server never answers.
         path = urllib.parse.unquote(urllib.parse.urlparse(self.path).path)
+        if path.startswith('/api/upload/'):
+            return self._put_upload(path[len('/api/upload/'):])
         if not path.startswith('/api/state/'):
             return self._send(404, 'text/plain', b'not found')
         if not (self.headers.get('Content-Type') or '').startswith('application/json'):
@@ -1280,6 +1464,28 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self._send(413 if err in ('too large', 'too many keys') else 400,
                               'text/plain', err.encode())
         return self._send(200, 'application/json', b'{"ok":true}')
+
+    def _put_upload(self, raw_name):
+        # Same cross-origin argument as state: a PUT never passes the CORS preflight this
+        # server never answers, so only same-origin pages (the /upload page) reach it.
+        if not UPLOADS:
+            return self._send(404, 'text/plain', b'uploads disabled')
+        name = upload_name(raw_name)
+        if name is None:
+            return self._send(400, 'text/plain', b'bad name')
+        try:
+            n = int(self.headers.get('Content-Length', ''))
+        except ValueError:
+            return self._send(411, 'text/plain', b'length required')
+        if n <= 0 or n > UPLOAD_MAX_BYTES:
+            self.close_connection = True
+            return self._send(413, 'text/plain', b'too large')
+        rel, err = store_upload(name, n, self.rfile)
+        if err:
+            self.close_connection = True
+            code = {'disk full': 507, 'uploads unavailable': 503}.get(err, 400)
+            return self._send(code, 'text/plain', err.encode())
+        return self._send(200, 'application/json', json.dumps({'path': rel}).encode())
 
     def do_GET(self):
         try:
@@ -1308,6 +1514,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
             body = json.dumps(load_opened()).encode()
             return self._send(200, 'application/json', body,
                               {'Cache-Control': 'no-store'})
+
+        if path == '/upload':
+            if not UPLOADS:
+                return self._send(404, 'text/plain', b'uploads disabled')
+            return self._send(200, 'text/html; charset=utf-8', UPLOAD_HTML.encode(),
+                              {'Cache-Control': 'no-cache'})
 
         if path.startswith('/api/state/'):
             key = path[len('/api/state/'):]
@@ -1395,4 +1607,6 @@ class Handler(http.server.BaseHTTPRequestHandler):
 if __name__ == '__main__':
     with http.server.ThreadingHTTPServer((BIND, PORT), Handler) as srv:
         print(f'drop: serving {ROOT} on {BIND}:{PORT}', flush=True)
+        if UPLOADS and os.path.exists('/.dockerenv'):
+            threading.Thread(target=watch_uploads_mount, daemon=True).start()
         srv.serve_forever()

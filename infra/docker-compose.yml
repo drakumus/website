@@ -303,8 +303,10 @@ services:
   drop:
     # Tailnet-only previewer for agent deliverables (see ~/specs/drop-server.md). Serves the
     # DROP_DIR/APOLLO_DIR host directories read-only as a file browser with inline previews
-    # (HTML, images, multi-STL 3D assemblies). Stdlib Python, no upload routes; the write path
-    # for content is agents on the host writing plain files into DROP_DIR. The mutation routes
+    # (HTML, images, multi-STL 3D assemblies). Stdlib Python. Content arrives two ways: agents
+    # on the host writing plain files into DROP_DIR, and the /upload page writing phone photos
+    # into DROP_UPLOADS_DIR, the one read-write content mount (nested at drop/uploads so the
+    # uploads list alongside everything else). The mutation routes
     # (opened-history and deliverable state, see drop/server.py) write only into the drop_state
     # volume, so both follow Rohan across devices. Published on host loopback for the
     # tailnet-gated drop.zoci.me vhost only, never the LAN or internet.
@@ -318,11 +320,13 @@ services:
       - "127.0.0.1:8092:8484"
     environment:
       - DROP_STATE=/state
+      - DROP_UPLOADS=/data/drop/uploads
     volumes:
       # drop_unset is an empty named-volume fallback so compose still loads without infra/.env;
       # the real host paths live there (gitignored, like every infra address).
       - ${DROP_DIR:-drop_unset}:/data/drop:ro
       - ${APOLLO_DIR:-drop_unset}:/data/apollo-case:ro
+      - ${DROP_UPLOADS_DIR:-drop_uploads_unset}:/data/drop/uploads
       - drop_state:/state
     read_only: true
     security_opt:
@@ -424,6 +428,7 @@ volumes:
   caddy_data:
   caddy_config:
   drop_unset:
+  drop_uploads_unset:
   drop_state:
   vm_data:
   grafana_data:
